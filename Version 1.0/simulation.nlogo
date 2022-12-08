@@ -7,13 +7,15 @@ globals [
 ]
 
 patches-own [
- structure-type         ; structure of the world (floor, obstacle, wall, door)
+  structure-type        ; structure of the world (floor, obstacle, wall, door)
   walkable?             ; whether agent can occupy a patch or not
   exit-id               ; exit door id
   dom doms              ; degree toward exit door
   hop hops              ; steps toward exit door
   initial-target-exit   ;
   updated?              ;
+  patch-value-left
+  patch-value-right
 ]
 
 people-own [
@@ -22,24 +24,26 @@ people-own [
   state         ; current state of an agent (walk, panic, giveup, escaped)
 ]
 
-;; ========== go button ==========
+;; ========== setup button ==========
 to setup
   clear-all
-  create-env          ; create a new environment from scratch
-  setup-agents        ; setup agent properties
-  InitializeGlobals   ; global variables
+  InitializeGlobals   ; initialies global parameters
+  create-env          ; create environment with 2 exits (left and right)
+  setup-agents        ; setup people based on number of person
   reset-ticks
+end
+
+
+;; ========== global variables ==========
+
+to InitializeGlobals
+  set speed 1
 end
 
 
 ;; ========== go button ==========
 to go
-  ask people [
-    movement-strategy                                    ; strategi pemilihan pintu keluar
-    set curr-dir get-direction-to-dest curr-exit         ;
-    set heading curr-exit                                ;
-  ]
-
+;  set curr-exit str1
   people-move                                            ; person movement
 end
 
@@ -48,54 +52,59 @@ end
 to create-env
   ; create a new environment from scratch
   ask patches [
-    set pcolor (brown + 4.8)
+    set pcolor brown
     set walkable? true
     set doms table:make                  ; create a new table called "doms" (sudut menuju exit)
     set hops table:make                  ; create a new table called "hops" (jumlah langkah menuju exit)
     set structure-type "floor"
-
-    setup-exits
-
-;    setup-obstacles
-    obstacle-wall -19 -10 0 20
-    obstacle-wall 11 4 14 0
-    obstacle-wall 11 -4 14 0
+    set updated? false
   ]
-
+  setup-exits                            ; setup exit door "left" and "right"
   doms-and-hops-default                  ; setup doms and hops value
   setup-potential-map                    ; setup turtle target
 end
 
 to setup-exits
-  ; lokasi pintu keluar
-  exit-door -25 1 0 2 "left" green
-  exit-door 25 1 0 2 "right" blue
+  ask patches [
+    exit-door -25 1 0 2 "left" green
+    exit-door 25 1 0 2 "right" blue
+  ]
 end
 
 to exit-door [ startx starty len wid id doorcolor ]
-  ; properti pintu keluar
   let exits patches with [
     (pxcor >= startx and pxcor <= startx + len)
     and
     (pycor <= starty and pycor >= starty - wid)
   ]
-
   ask exits [
     set walkable? true
-    set structure-type "door"
+    set structure-type "exit"
     set exit-id id
     set pcolor doorcolor
   ]
 end
 
+
+;; ========== direction setup ==========
+to doms-and-hops-default
+  ask patches [
+    table:put doms "left" -1
+    table:put doms "right" 1
+
+    table:put hops "left" 0
+    table:put hops "right" 0
+  ]
+end
+
 to setup-potential-map
-  ;
-  ask patches with [ structure-type = "door" ] [
+  ; setup turtle target toward exit door
+  ask patches with [ structure-type = "exit" ] [
     let gx pxcor
     let gy pycor
     let te exit-id
     let neigh-patches neighbors with [
-      structure-type != "door"
+      structure-type != "exit"
       and walkable?
     ]
     ask neigh-patches [
@@ -110,40 +119,30 @@ to setup-potential-map
       ]
     ]
   ]
-end
-
-;to setup-obstacles
-;  obstacle-wall
-;end
-
-to obstacle-wall [ startx starty len wid ]
-  let obstacle patches with [
-    (pxcor >= startx and pxcor <= startx + len)
-    and
-    (pycor >= starty and pycor <= starty + wid)
+  ; loop for counting patches to decide the nearest exit
+  while [ count patches with [ structure-type = "floor" and updated? = false ] > 0 ] [
+    update-patchleft
   ]
-  ask obstacle[
-    set walkable? false
-    set structure-type "obstacle"
-    set pcolor gray
+  ask patches with [ structure-type = "floor" and initial-target-exit != "right" ] [
+    set updated? false
+  ]
+  while [ count patches with [ structure-type = "floor" and updated? = false ] > 0 ] [
+    update-patchright
+  ]
+  ask patches with [ structure-type = "floor" ] [
+    set pcolor (brown + 4.8)
   ]
 end
 
-to doms-and-hops-default
-  ask patches [
-    table:put doms "left" -1
-    table:put doms "right" 1
+to update-patchleft
+end
 
-    table:put hops "left" 0
-    table:put hops "right" 0
-  ]
+to update-patchright
 end
 
 
-;; ========== global variables ==========
-
-to InitializeGlobals
-  set speed 1
+;; ========== strategy setup ==========
+to-report str1
 end
 
 
@@ -161,8 +160,10 @@ to setup-agents
     ]
     set color black
     set state "start"
+    set shape "agent"
   ]
 end
+
 
 ;; ========== movement setup ==========
 
@@ -176,13 +177,6 @@ to people-move
       forward speed
       set state "walk"
     ]
-
-;    ifelse random 2 < 1 [
-;      right (random-float 45 - random-float 45)
-;    ]
-;    [
-;      forward 1
-;    ]
   ]
 end
 
@@ -211,8 +205,8 @@ GRAPHICS-WINDOW
 1
 1
 0
-1
-1
+0
+0
 1
 -25
 25
@@ -331,6 +325,12 @@ default
 true
 0
 Polygon -7500403 true true 150 5 40 250 150 205 260 250
+
+agent
+true
+0
+Circle -7500403 true true -2 -2 302
+Polygon -1 true false 150 5 75 120 150 90 225 120
 
 airplane
 true
