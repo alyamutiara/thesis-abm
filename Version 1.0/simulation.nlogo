@@ -138,6 +138,10 @@ to update-patchleft
 end
 
 to update-patchright
+  ask patches with [ structure-type = "floor" and table:get doms "right" != -1 ] [
+    let gx pxcor
+    let gy pycor
+  ]
 end
 
 
