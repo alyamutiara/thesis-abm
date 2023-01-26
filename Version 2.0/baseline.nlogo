@@ -1,11 +1,14 @@
+extensions [ table ]
+breed [ persons person ]
+
 globals [
-  upper       ; the upper edge of exit
-  lower       ; the lower edge of exit
+  upper       ; the upper edge of the exit
+  lower       ; the lower edge of the exit
   alist       ; array used in calculating the shortest distance to exits
-  move-speed  ; how many patches did people move in last tick on average
+  move-speed  ; how many patches did persons move in last tick on average
 ]
 
-turtles-own [
+persons-own [
   moved?      ; if agent moved in this tick
 ]
 
@@ -34,9 +37,7 @@ end
 to show-elevation
   let min-e min [elevation] of patches with [ pcolor != brown and exit != 1 ]
   let max-e max [elevation] of patches with [ pcolor != brown and exit != 1 ]
-  print min-e
-  print max-e
-  ask patches with [pcolor != brown ] [
+  ask patches with [ pcolor != brown ] [
     set pcolor scale-color pink elevation (max-e + 1) min-e
   ]
 end
@@ -52,7 +53,6 @@ to set-env
     set pcolor brown
     set plabel pycor
   ]
-
   ask patches with [ pycor = 15 or pycor = -15 ] [
     set pcolor brown
     set plabel pxcor
@@ -65,18 +65,14 @@ to set-env
     set pcolor green - 3
     set exit 1
   ]
-  ask patches with [ pxcor = -15 and pycor < upper and pycor >= lower ] [
-    set pcolor green - 3
-    set exit 1
-  ]
 end
 
 to set-agent
-  ask n-of people patches with [ pcolor = white and pxcor != 15 ] [
-    sprout 1 [
-      set color red
-      set shape "turtle"
-    ]
+  clear-turtles
+  create-persons people [
+    move-to one-of patches with [ pcolor = white and pxcor != 15 and (not any? other turtles-here) ]
+    set color red
+    set shape "turtle"
   ]
 end
 
@@ -97,22 +93,22 @@ end
 
 ; ============================ GO BUTTON ============================
 to check-path
-  if count turtles > 0 [
-    set move-speed (count turtles with [ moved? = true ] / count turtles)
+  if count persons > 0 [
+    set move-speed (count persons with [ moved? = true ] / count turtles)
+    print move-speed
   ]
-
 
   ask patches with [ exit = 1 ] [
-    ask turtles-here [ die ]
+    ask persons-here [ die ]
   ]
 
-  ask turtles [
+  ask persons [
     set moved? false
     let target min-one-of neighbors [
-      elevation + ( count turtles-here * 99999999 )
+      elevation + (count persons-here * 99999999)
     ]
 
-    if [ elevation + (count turtles-here * 99999999)] of target < [ elevation ] of patch-here [
+    if [ elevation + (count persons-here * 99999999) ] of target < [elevation] of patch-here [
       face target
       move-to target
       set moved? true
@@ -216,7 +212,7 @@ exit-width
 exit-width
 1
 15
-1.0
+3.0
 1
 1
 NIL
