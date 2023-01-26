@@ -25,9 +25,21 @@ end
 
 to go
   check-path
+  heat-map
+
+  if count turtles = 0 [ stop ]
   tick
 end
 
+to show-elevation
+  let min-e min [elevation] of patches with [ pcolor != brown and exit != 1 ]
+  let max-e max [elevation] of patches with [ pcolor != brown and exit != 1 ]
+  print min-e
+  print max-e
+  ask patches with [pcolor != brown ] [
+    set pcolor scale-color pink elevation (max-e + 1) min-e
+  ]
+end
 
 ; ============================ SETUP BUTTON ============================
 to set-env
@@ -85,13 +97,10 @@ end
 
 ; ============================ GO BUTTON ============================
 to check-path
-  show (count turtles)
   if count turtles > 0 [
-    set move-speed (count turtles with [ moved? = true ] / count turtles )
+    set move-speed (count turtles with [ moved? = true ] / count turtles)
   ]
-  if count turtles = 0 [
-    stop
-  ]
+
 
   ask patches with [ exit = 1 ] [
     ask turtles-here [ die ]
@@ -110,6 +119,18 @@ to check-path
       ask target [
         set path (path + 1)
       ]
+    ]
+  ]
+end
+
+to heat-map
+  if show-heat-map? [
+    ask patches with [ pcolor != brown ] [
+      let thecolor (9.9 - (path * 0.15))
+      if thecolor < 0.001 [
+        set thecolor 0.001
+      ]
+      set pcolor thecolor
     ]
   ]
 end
@@ -176,30 +197,58 @@ NIL
 1
 
 INPUTBOX
-14
-91
-163
-151
+9
+76
+158
+136
 people
-800.0
+500.0
 1
 0
 Number
 
 SLIDER
-13
-163
-185
-196
+8
+148
+180
+181
 exit-width
 exit-width
-0
+1
 15
 1.0
 1
 1
 NIL
 HORIZONTAL
+
+SWITCH
+6
+196
+168
+229
+show-heat-map?
+show-heat-map?
+0
+1
+-1000
+
+BUTTON
+8
+242
+171
+275
+show elevation graph
+show-elevation
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
