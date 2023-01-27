@@ -22,7 +22,7 @@ persons-own [
 
 patches-own [
   path               ; how many times it has been chosen as a path
-  exit               ; if exit? true 1, if false 0
+  patch-id           ; if exit, wall, and obstacle = 1, if floor 0
   elevation          ; the shortest distance to exit
   name               ; patches id
 ]
@@ -41,14 +41,15 @@ to go
 
   calc-desired-direction
   calc-driving-force
+  calc-obstacle-force
 
   if count turtles = 0 [ stop ]
   tick
 end
 
 to show-elevation
-  let min-e min [elevation] of patches with [ pcolor != brown and exit != 1 ]
-  let max-e max [elevation] of patches with [ pcolor != brown and exit != 1 ]
+  let min-e min [elevation] of patches with [ pcolor != brown and patch-id != 1 ]
+  let max-e max [elevation] of patches with [ pcolor != brown and patch-id != 1 ]
   ask patches with [ pcolor != brown ] [
     set pcolor scale-color pink elevation (max-e + 1) min-e
   ]
@@ -78,10 +79,11 @@ to set-env
   set lower 0 - (exit-width - upper)
   ask patches with [ pxcor = 15 and pycor < upper and pycor >= lower ] [
     set pcolor green - 3
-    set exit 1
+    set patch-id 1
     set name "exit"
   ]
 end
+
 
 to set-agent
   clear-turtles
@@ -101,7 +103,7 @@ end
 to set-elevation
   ask patches [
     set alist []
-    ask patches with [ exit = 1 ] [
+    ask patches with [ patch-id = 1 ] [
       set alist
       lput distance myself alist
     ]
@@ -119,7 +121,7 @@ to check-path
     set move-speed (count persons with [ moved? = true ] / count turtles)
   ]
 
-  ask patches with [ exit = 1 ] [
+  ask patches with [ patch-id = 1 ] [
     ask persons-here [ die ]
   ]
 
@@ -156,8 +158,8 @@ end
 ;; find the heading toward the nearest exit
 to calc-desired-direction
   ask turtles [
-    if [exit] of patch-here != 1 [
-      let goal min-one-of (patches with [ exit = 1 ]) [ distance myself ]
+    if [patch-id] of patch-here != 1 [
+      let goal min-one-of (patches with [ patch-id = 1 ]) [ distance myself ]
       set desired-direction towards goal
     ]
   ]
@@ -168,6 +170,24 @@ to calc-driving-force
   ask turtles [
     set driving-forcex (1 / tau) * (move-speed * (sin desired-direction) - vx)
     set driving-forcey (1 / tau) * (move-speed * (cos desired-direction) - vy)
+  ]
+end
+
+;; find the obstacle force of the turtle according to the social forces model
+to calc-obstacle-force
+  ask turtles [
+    set obstacle-forcex 0
+    set obstacle-forcey 0
+    if [patch-id] of patch-here != 1 [
+      ask patches with [ patch-id = 1 ] [
+        let to-obstacle (towards myself) - 180
+        let obstacle-force (- u0) * exp (-(distance myself) / r)
+        ask myself [
+          set obstacle-forcex obstacle-forcex + obstacle-force * (sin to-obstacle)
+          set obstacle-forcey obstacle-forcey + obstacle-force * (cos to-obstacle)
+        ]
+      ]
+    ]
   ]
 end
 @#$#@#$#@
