@@ -1,21 +1,30 @@
-extensions [ table ]
 breed [ persons person ]
 
 globals [
-  upper       ; the upper edge of the exit
-  lower       ; the lower edge of the exit
-  alist       ; array used in calculating the shortest distance to exits
-  move-speed  ; how many patches did persons move in last tick on average
+  upper              ; the upper edge of the exit
+  lower              ; the lower edge of the exit
+  alist              ; array used in calculating the shortest distance to exits
+  move-speed         ; how many patches did persons move in last tick on average
 ]
 
 persons-own [
-  moved?      ; if agent moved in this tick
+  moved?             ; if agent moved in this tick
+  vx                 ; x velocity
+  vy                 ; y velocity
+  desired-direction  ; person desired direction towards exit
+  driving-forcex     ; agent's motivation force in x axis
+  driving-forcey     ; agent's motivation force in y axis
+  obstacle-forcex    ; force exerted by obstacles
+  obstacle-forcey
+  territorial-forcex ; force exerted by neighbors
+  territorial-forcey
 ]
 
 patches-own [
-  path        ; how many times it has been chosen as a path
-  exit        ; if exit? true 1, if false 0
-  elevation   ; the shortest distance to exit
+  path               ; how many times it has been chosen as a path
+  exit               ; if exit? true 1, if false 0
+  elevation          ; the shortest distance to exit
+  name               ; patches id
 ]
 
 to setup
@@ -29,6 +38,9 @@ end
 to go
   check-path
   heat-map
+
+  calc-desired-direction
+  calc-driving-force
 
   if count turtles = 0 [ stop ]
   tick
@@ -49,30 +61,40 @@ to set-env
     set path 0
   ]
 
-  ask patches with [ pxcor = 15 or pxcor = -15 ] [
+  ;; set boundare patches as walls
+  ask patches with [ pxcor = min-pxcor or pxcor = max-pxcor ] [
     set pcolor brown
-    set plabel pycor
+    set name " wall"
+;    set plabel pycor
   ]
-  ask patches with [ pycor = 15 or pycor = -15 ] [
+  ask patches with [ pycor = min-pycor or pycor = max-pycor ] [
     set pcolor brown
-    set plabel pxcor
+    set name "wall"
+;    set plabel pxcor
   ]
 
+  ;; create the exit door
   set upper round (exit-width / 2)
   set lower 0 - (exit-width - upper)
-
   ask patches with [ pxcor = 15 and pycor < upper and pycor >= lower ] [
     set pcolor green - 3
     set exit 1
+    set name "exit"
   ]
 end
 
 to set-agent
   clear-turtles
-  create-persons people [
+  ;; create agents
+  create-persons num-people [
     move-to one-of patches with [ pcolor = white and pxcor != 15 and (not any? other turtles-here) ]
     set color red
     set shape "turtle"
+    let init-direction -90 + random 180     ;; give the turtles an initial nudge towards the goal
+    set vx sin init-direction
+    set vy cos init-direction
+    set label who
+    set label-color black
   ]
 end
 
@@ -95,7 +117,6 @@ end
 to check-path
   if count persons > 0 [
     set move-speed (count persons with [ moved? = true ] / count turtles)
-    print move-speed
   ]
 
   ask patches with [ exit = 1 ] [
@@ -128,6 +149,25 @@ to heat-map
       ]
       set pcolor thecolor
     ]
+  ]
+end
+
+;; ------------ SOCIAL FORCE ------------
+;; find the heading toward the nearest exit
+to calc-desired-direction
+  ask turtles [
+    if [exit] of patch-here != 1 [
+      let goal min-one-of (patches with [ exit = 1 ]) [ distance myself ]
+      set desired-direction towards goal
+    ]
+  ]
+end
+
+;; find the driving force of the agent
+to calc-driving-force
+  ask turtles [
+    set driving-forcex (1 / tau) * (move-speed * (sin desired-direction) - vx)
+    set driving-forcey (1 / tau) * (move-speed * (cos desired-direction) - vy)
   ]
 end
 @#$#@#$#@
@@ -182,7 +222,7 @@ BUTTON
 55
 NIL
 go
-T
+NIL
 1
 T
 OBSERVER
@@ -197,8 +237,8 @@ INPUTBOX
 76
 158
 136
-people
-500.0
+num-people
+5.0
 1
 0
 Number
@@ -225,7 +265,7 @@ SWITCH
 229
 show-heat-map?
 show-heat-map?
-0
+1
 1
 -1000
 
@@ -245,6 +285,91 @@ NIL
 NIL
 NIL
 1
+
+TEXTBOX
+11
+294
+161
+312
+Force Constants
+11
+0.0
+1
+
+SLIDER
+14
+477
+186
+510
+tau
+tau
+1
+30
+10.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+15
+315
+187
+348
+v0
+v0
+0
+10
+3.8
+0.1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+14
+355
+186
+388
+sigma
+sigma
+0.1
+10
+3.9
+0.1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+14
+395
+186
+428
+u0
+u0
+0
+20
+8.3
+0.1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+14
+437
+186
+470
+r
+r
+0
+10
+5.0
+0.1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
