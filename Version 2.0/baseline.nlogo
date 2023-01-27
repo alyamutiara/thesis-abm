@@ -42,6 +42,9 @@ to go
   calc-desired-direction
   calc-driving-force
   calc-obstacle-force
+  if any? other persons [
+    calc-territorial-forces
+  ]
 
   if count turtles = 0 [ stop ]
   tick
@@ -154,7 +157,7 @@ to heat-map
   ]
 end
 
-;; ------------ SOCIAL FORCE ------------
+;; ------------------------ SOCIAL FORCE ------------------------
 ;; find the heading toward the nearest exit
 to calc-desired-direction
   ask turtles [
@@ -189,6 +192,47 @@ to calc-obstacle-force
       ]
     ]
   ]
+end
+
+;; find the territorial force according to the social forces model
+to calc-territorial-forces
+  ask turtles [
+    set territorial-forcex 0
+    set territorial-forcey 0
+    ask other turtles with [ distance myself > 0 ] [
+      let to-agent (towards myself) - 180
+      let rabx [xcor] of myself - xcor
+      let raby [ycor] of myself - ycor
+      let speed magnitude vx vy
+      let to-root ((magnitude rabx raby) + (magnitude (rabx - (speed * sin desired-direction)) (speed - (speed * cos desired-direction)))) ^ 2 - speed ^ 2
+      if to-root < 0 [
+        set to-root 0
+      ]
+      let b 0.5 * sqrt to-root
+      let agent-force (- v0) * exp (- b / sigma)
+
+      ask myself [
+        let agent-forcex agent-force * (sin to-agent)
+        let agent-forcey agent-force * (cos to-agent)
+        ;; modify the effect this force has based on whether or not it is in the field of view
+        let vision field-of-view-modifier driving-forcex driving-forcey agent-forcex agent-forcey
+        set territorial-forcex territorial-forcex + agent-forcex * vision
+        set territorial-forcey territorial-forcey + agent-forcey * vision
+      ]
+    ]
+  ]
+end
+
+;; helper function to find the magnitude of a vector
+to-report magnitude [ x y ]
+  report sqrt ((x ^ 2) + (y ^ 2))
+end
+
+;; returns 1 if the angle between the desired vector and the vector is within a threshold, else return c
+to-report field-of-view-modifier [ desiredx desiredy forcex forcey ]
+  ifelse (desiredx * (- forcex) + desiredy * (- forcey)) >= (magnitude forcex forcey) * cos (field-of-view / 2)
+  [ report 1 ]
+  [ report c ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -236,10 +280,10 @@ NIL
 1
 
 BUTTON
-89
-22
-152
-55
+86
+21
+149
+54
 NIL
 go
 NIL
@@ -254,9 +298,9 @@ NIL
 
 INPUTBOX
 9
-76
+59
 158
-136
+119
 num-people
 5.0
 1
@@ -264,10 +308,10 @@ num-people
 Number
 
 SLIDER
-8
-148
-180
+9
+125
 181
+158
 exit-width
 exit-width
 1
@@ -279,10 +323,10 @@ NIL
 HORIZONTAL
 
 SWITCH
-6
-196
-168
-229
+9
+164
+171
+197
 show-heat-map?
 show-heat-map?
 1
@@ -290,10 +334,10 @@ show-heat-map?
 -1000
 
 BUTTON
-8
-242
-171
-275
+9
+202
+172
+235
 show elevation graph
 show-elevation
 NIL
@@ -307,20 +351,20 @@ NIL
 1
 
 TEXTBOX
-11
-294
-161
-312
+7
+247
+157
+265
 Force Constants
 11
 0.0
 1
 
 SLIDER
-14
-477
-186
-510
+10
+430
+182
+463
 tau
 tau
 1
@@ -332,10 +376,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-15
-315
-187
-348
+11
+268
+183
+301
 v0
 v0
 0
@@ -347,10 +391,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-14
-355
-186
-388
+10
+308
+182
+341
 sigma
 sigma
 0.1
@@ -362,10 +406,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-14
-395
-186
-428
+10
+348
+182
+381
 u0
 u0
 0
@@ -377,15 +421,45 @@ NIL
 HORIZONTAL
 
 SLIDER
-14
-437
-186
-470
+10
+390
+182
+423
 r
 r
 0
 10
 5.0
+0.1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+233
+538
+405
+571
+field-of-view
+field-of-view
+0
+360
+200.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+411
+538
+583
+571
+c
+c
+0
+1
+0.0
 0.1
 1
 NIL
