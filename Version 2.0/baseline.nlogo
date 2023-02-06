@@ -69,11 +69,13 @@ to set-env
   ask patches with [ pxcor = min-pxcor or pxcor = max-pxcor ] [
     set pcolor brown
     set name " wall"
+    set patch-id 2
 ;    set plabel pycor
   ]
   ask patches with [ pycor = min-pycor or pycor = max-pycor ] [
     set pcolor brown
     set name "wall"
+    set patch-id 2
 ;    set plabel pxcor
   ]
 
@@ -119,6 +121,7 @@ to set-elevation
 end
 
 ; ============================ GO BUTTON ============================
+;; check shortest path using elevation method
 to check-path
   if count persons > 0 [
     set move-speed (count persons with [ moved? = true ] / count turtles)
@@ -464,6 +467,16 @@ c
 1
 NIL
 HORIZONTAL
+
+TEXTBOX
+741
+34
+1084
+76
+Note:\nTurtles movement based on elevation map
+11
+0.0
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
