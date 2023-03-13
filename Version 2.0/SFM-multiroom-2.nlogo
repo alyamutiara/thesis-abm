@@ -6,10 +6,18 @@ globals [
   alist              ; array used in calculating the shortest distance to exits
   move-speed         ; how many patches did persons move in last tick on average
   dead               ; count persons dead
+  walls
+  doors
+  exits
+  corners-top-left
+  corners-top-right
+  corners-bottom-left
+  corners-bottom-right
 ]
 
 persons-own [
   moved?             ; if agent moved in this tick
+  went-through
   vx                 ; x velocity
   vy                 ; y velocity
   desired-direction  ; person desired direction towards exit
@@ -26,6 +34,9 @@ patches-own [
   patch-id           ; if exit, wall, and obstacle = 1, if floor 0
   elevation          ; the shortest distance to exit
   name               ; patches id
+  value              ; patches count of each type of structure
+  door-value
+  goal
 ]
 
 to setup
@@ -33,7 +44,6 @@ to setup
   reset-ticks
   set-env
   set-agent
-  set-elevation
 end
 
 to go
@@ -44,19 +54,12 @@ to go
     calc-territorial-forces
   ]
   move-persons
+;  change-heading
   if count persons = 0 [ stop ]
   tick
 end
 
-to show-elevation
-;  let min-e min [elevation] of patches with [ pcolor != brown and patch-id != 1 and patch-id != 2 ]
-;  let max-e max [elevation] of patches with [ pcolor != brown and patch-id != 1 and patch-id != 2 ]
-;  ask patches with [ pcolor != brown and patch-id != 2 ] [
-;    set pcolor scale-color pink elevation (max-e + 1) min-e
-;  ]
-end
-
-; ============================ SETUP BUTTON ============================
+; ======================================================== SETUP BUTTON ========================================================
 to set-env
   ask patches [
     set pcolor white
@@ -80,23 +83,71 @@ to set-env
   ;; create the exit door
   set upper round (exit-width / 2)
   set lower 0 - (exit-width - upper)
-  ask patches with [ pxcor = -15 and pycor < upper and pycor >= lower ] [
-    set pcolor green - 3
-    set patch-id 1
-    set name "door"
+  ask patches with [ pxcor < upper and pxcor >= lower and pycor = max-pycor ] [
+    set pcolor lime
+    set patch-id 2
+    set name "exit"
   ]
-;  ask patches with [ pxcor = 15 and pycor < upper and pycor >= lower ] [
-;    set pcolor green - 3
-;    set patch-id 1
-;    set name "door"
+
+  ;; create the room walls
+  ask patches [
+    set-walls -20 -20 min-pycor max-pycor    ; dinding koridor kiri
+    set-walls 20 20 min-pycor max-pycor      ; dinding koridor kanan
+    set-walls -20 20 -9 -9                   ; dinding sisi pintu auditorium
+    set-walls -50 -20 0 0                    ; dinding antara ruang I dan II
+    set-walls 20 50 0 0                      ; dinding antara ruang III dan IV
+  ]
+
+  ;; create the room doors
+  ask patches [
+    set-doors -20 -20 33 34                  ; pintu ruang I
+    set-doors -20 -20 -5 -4                  ; pintu ruang II
+    set-doors -1 1 -9 -9                     ; pintu auditorium
+    set-doors 20 20 -5 -4                    ; pintu ruang III
+    set-doors 20 20 6 7                      ; pintu ruang IV
+  ]
+
+  ;; create the obstacle
+;  ask patches with [ pxcor = 0 and pycor > -6 and pycor < 6] [
+;    set pcolor gray
+;    set patch-id -1
+;    set name "obstacle"
 ;  ]
-  ask patches with [ pxcor = 0 and pycor > -6 and pycor < 6] [
-    set pcolor gray
-    set patch-id -1
-    set name "obstacle"
+
+;  ask patches [
+;    set plabel patch-id
+;    set plabel-color black
+;    set plabel (word pxcor","pycor)
+;  ]
+end
+
+;; create the door for each room
+to set-doors [ startx endx starty endy ]
+  let door patches with [
+    (pxcor >= startx and pxcor <= endx)
+    and
+    (pycor >= starty and pycor <= endy)
+  ]
+  ask door [
+    set name "door"
+    set patch-id 1
+    set pcolor 97
   ]
 end
 
+;; create a walls separating each room
+to set-walls [ startx endx starty endy ]
+  let wall patches with [
+    (pxcor >= startx and pxcor <= endx)
+    and
+    (pycor >= starty and pycor <= endy)
+  ]
+  ask wall [
+    set name "wall"
+    set patch-id -1
+    set pcolor brown
+  ]
+end
 
 to set-agent
   clear-turtles
@@ -113,39 +164,28 @@ to set-agent
   ]
 end
 
-to set-elevation
-;  ask patches [
-;    set alist []
-;    ask patches with [ patch-id = 1 ] [
-;      set alist
-;      lput distance myself alist
-;    ]
-;    set elevation min alist
-;  ]
-;
-;  ask patches with [ pcolor = brown ] [
-;    set elevation 999999999
-;  ]
-end
-
-; ============================ GO BUTTON ============================
-to heat-map
-;  if show-heat-map? [
-;    ask patches with [ pcolor != brown and patch-id != 2 ] [
-;      let thecolor (9.9 - (path * 0.15))
-;      if thecolor < 0.001 [
-;        set thecolor 0.001
-;      ]
-;      set pcolor thecolor
-;    ]
-;  ]
-end
+; ======================================================== GO BUTTON ========================================================
 
 to calc-desired-direction
   ask persons [
-    if [patch-id] of patch-here != 1 [
-      let goal min-one-of (patches with [ patch-id = 1 ]) [ distance myself ]
+    let cur-patch patch-here
+    if [patch-id] of patch-here != 2 [
+      ifelse ([pxcor] of patch-here > -20 and [pxcor] of patch-here < 20 and [pycor] of patch-here > -9)[
+        set goal min-one-of (patches with [ patch-id = 2 ]) [ distance myself ]
+      ][
+        set goal min-one-of (patches with [ patch-id = 1 ]) [ distance myself ]
+      ]
       set desired-direction towards goal
+    ]
+  ]
+end
+
+to calc-desired-direction-backup
+  ask persons [
+    if [patch-id] of patch-here != 2 [
+      let goals min-one-of (patches with [ patch-id = 2 ]) [ distance myself ]
+      show goals
+      set desired-direction towards goals
     ]
   ]
 end
@@ -161,8 +201,8 @@ to calc-obstacle-force
   ask persons [
     set obstacle-forcex 0
     set obstacle-forcey 0
-    if [patch-id] of patch-here != 1 [
-      ask patches with [ patch-id = -1 ] [
+    if [patch-id] of patch-here != 2 [
+      ask patches with [ patch-id = -1 ] [     ;; walls
         let to-obstacle (towards myself) - 180
         let obstacle-force (- u0) * exp (- (distance myself) / r)
         ask myself [
@@ -236,21 +276,21 @@ to move-persons
     set ycor ycor + vy
   ]
 
-  ask patches with [ patch-id = 1 ] [
+  ask patches with [ patch-id = 2 ] [
     ask persons-here [ die ]
   ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-210
+292
 10
-683
-484
+1007
+586
 -1
 -1
-15.0
+7.0
 1
-8
+6
 1
 1
 1
@@ -258,10 +298,10 @@ GRAPHICS-WINDOW
 0
 0
 1
--15
-15
--15
-15
+-50
+50
+-40
+40
 0
 0
 1
@@ -308,7 +348,7 @@ INPUTBOX
 158
 119
 num-people
-50.0
+100.0
 1
 0
 Number
@@ -322,45 +362,17 @@ exit-width
 exit-width
 1
 15
-2.0
+3.0
 1
 1
 NIL
 HORIZONTAL
 
-SWITCH
-9
-164
-171
-197
-show-heat-map?
-show-heat-map?
-0
-1
--1000
-
-BUTTON
-9
-202
-172
-235
-show elevation graph
-show-elevation
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
 TEXTBOX
 7
-247
+179
 157
-265
+197
 Force Constants
 11
 0.0
@@ -368,9 +380,9 @@ Force Constants
 
 SLIDER
 10
-430
+362
 182
-463
+395
 tau
 tau
 1
@@ -383,9 +395,9 @@ HORIZONTAL
 
 SLIDER
 11
-268
+200
 183
-301
+233
 v0
 v0
 0
@@ -398,9 +410,9 @@ HORIZONTAL
 
 SLIDER
 10
-308
+240
 182
-341
+273
 sigma
 sigma
 0.1
@@ -413,9 +425,9 @@ HORIZONTAL
 
 SLIDER
 10
-348
+280
 182
-381
+313
 u0
 u0
 0
@@ -428,9 +440,9 @@ HORIZONTAL
 
 SLIDER
 10
-390
+322
 182
-423
+355
 r
 r
 0.15
@@ -442,10 +454,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-233
-538
-405
-571
+10
+445
+182
+478
 field-of-view
 field-of-view
 0
@@ -457,10 +469,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-411
-538
-583
-571
+10
+486
+182
+519
 c
 c
 0
@@ -472,47 +484,29 @@ NIL
 HORIZONTAL
 
 TEXTBOX
-741
-34
-1084
-76
+11
+530
+354
+572
 Note:\nTurtles movement based on social force model
 11
 0.0
 1
 
 SLIDER
-11
-486
-183
-519
+10
+405
+182
+438
 max-speed
 max-speed
 0
 1
-0.3
+0.4
 0.1
 1
 NIL
 HORIZONTAL
-
-PLOT
-849
-94
-1049
-244
-plot 1
-time
-count
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"persons-dead" 1.0 0 -16777216 true "" "plot dead"
 
 @#$#@#$#@
 ## WHAT IS IT?

@@ -1,31 +1,18 @@
-breed [ persons person ]
-
 globals [
-  upper              ; the upper edge of the exit
-  lower              ; the lower edge of the exit
-  alist              ; array used in calculating the shortest distance to exits
-  move-speed         ; how many patches did persons move in last tick on average
-  dead               ; count persons dead
+  upper       ; the upper edge of exit
+  lower       ; the lower edge of exit
+  alist       ; array used in calculating the shortest distance to exits
+  move-speed  ; how many patches did people move in last tick on average
 ]
 
-persons-own [
-  moved?             ; if agent moved in this tick
-  vx                 ; x velocity
-  vy                 ; y velocity
-  desired-direction  ; person desired direction towards exit
-  driving-forcex     ; agent's motivation force in x axis
-  driving-forcey     ; agent's motivation force in y axis
-  obstacle-forcex    ; force exerted by obstacles
-  obstacle-forcey
-  territorial-forcex ; force exerted by neighbors
-  territorial-forcey
+turtles-own [
+  moved?      ; if agent moved in this tick
 ]
 
 patches-own [
-  path               ; how many times it has been chosen as a path
-  patch-id           ; if exit, wall, and obstacle = 1, if floor 0
-  elevation          ; the shortest distance to exit
-  name               ; patches id
+  path        ; how many times it has been chosen as a path
+  exit        ; if exit? true 1, if false 0
+  elevation   ; the shortest distance to exit
 ]
 
 to setup
@@ -37,23 +24,21 @@ to setup
 end
 
 to go
-  calc-desired-direction
-  calc-driving-force
-  calc-obstacle-force
-  if any? other persons [
-    calc-territorial-forces
-  ]
-  move-persons
-  if count persons = 0 [ stop ]
+  check-path
+  heat-map
+
+  if count turtles = 0 [ stop ]
   tick
 end
 
 to show-elevation
-;  let min-e min [elevation] of patches with [ pcolor != brown and patch-id != 1 and patch-id != 2 ]
-;  let max-e max [elevation] of patches with [ pcolor != brown and patch-id != 1 and patch-id != 2 ]
-;  ask patches with [ pcolor != brown and patch-id != 2 ] [
-;    set pcolor scale-color pink elevation (max-e + 1) min-e
-;  ]
+  let min-e min [elevation] of patches with [ pcolor != brown and exit != 1 ]
+  let max-e max [elevation] of patches with [ pcolor != brown and exit != 1 ]
+;  print min-e
+;  print max-e
+  ask patches with [pcolor != brown ] [
+    set pcolor scale-color pink elevation (max-e + 1) min-e
+  ]
 end
 
 ; ============================ SETUP BUTTON ============================
@@ -63,181 +48,90 @@ to set-env
     set path 0
   ]
 
-  ;; set boundary patches as walls
-  ask patches with [ pxcor = min-pxcor or pxcor = max-pxcor ] [
+  ask patches with [ pxcor = 15 or pxcor = -15 ] [
     set pcolor brown
-    set name "wall"
-    set patch-id -1
-;    set plabel pycor
-  ]
-  ask patches with [ pycor = min-pycor or pycor = max-pycor ] [
-    set pcolor brown
-    set name "wall"
-    set patch-id -1
-;    set plabel pxcor
+    set plabel pycor
   ]
 
-  ;; create the exit door
+  ask patches with [ pycor = 15 or pycor = -15 ] [
+    set pcolor brown
+    set plabel pxcor
+  ]
+
   set upper round (exit-width / 2)
   set lower 0 - (exit-width - upper)
+
+  ask patches with [ pxcor = 15 and pycor < upper and pycor >= lower ] [
+    set pcolor green - 3
+    set exit 1
+  ]
   ask patches with [ pxcor = -15 and pycor < upper and pycor >= lower ] [
     set pcolor green - 3
-    set patch-id 1
-    set name "door"
-  ]
-;  ask patches with [ pxcor = 15 and pycor < upper and pycor >= lower ] [
-;    set pcolor green - 3
-;    set patch-id 1
-;    set name "door"
-;  ]
-  ask patches with [ pxcor = 0 and pycor > -6 and pycor < 6] [
-    set pcolor gray
-    set patch-id -1
-    set name "obstacle"
+    set exit 1
   ]
 end
 
-
 to set-agent
-  clear-turtles
-  ;; create agents
-  create-persons num-people [
-    move-to one-of patches with [ pcolor = white and pxcor != 15 and (not any? other turtles-here) ]
-    set color blue
-    set shape "circle"
-    let init-direction 0 + random 360     ;; give the turtles an initial nudge towards the goal
-    set vx sin init-direction
-    set vy cos init-direction
-;    set label who
-;    set label-color black
+  ask n-of people patches with [ pcolor = white and pxcor != 15 ] [
+    sprout 1 [
+      set color red
+      set shape "turtle"
+    ]
   ]
 end
 
 to set-elevation
-;  ask patches [
-;    set alist []
-;    ask patches with [ patch-id = 1 ] [
-;      set alist
-;      lput distance myself alist
-;    ]
-;    set elevation min alist
-;  ]
-;
-;  ask patches with [ pcolor = brown ] [
-;    set elevation 999999999
-;  ]
+  ask patches [
+    set alist []
+    ask patches with [ exit = 1 ] [
+      set alist
+      lput distance myself alist
+    ]
+    set elevation min alist
+  ]
+
+  ask patches with [ pcolor = brown ] [
+    set elevation 999999999
+  ]
 end
 
 ; ============================ GO BUTTON ============================
+to check-path
+  if count turtles > 0 [
+    set move-speed (count turtles with [ moved? = true ] / count turtles)
+  ]
+
+
+  ask patches with [ exit = 1 ] [
+    ask turtles-here [ die ]
+  ]
+
+  ask turtles [
+    set moved? false
+    let target min-one-of neighbors [
+      elevation + ( count turtles-here * 99999999 )
+    ]
+
+    if [ elevation + (count turtles-here * 99999999)] of target < [ elevation ] of patch-here [
+      face target
+      move-to target
+      set moved? true
+      ask target [
+        set path (path + 1)
+      ]
+    ]
+  ]
+end
+
 to heat-map
-;  if show-heat-map? [
-;    ask patches with [ pcolor != brown and patch-id != 2 ] [
-;      let thecolor (9.9 - (path * 0.15))
-;      if thecolor < 0.001 [
-;        set thecolor 0.001
-;      ]
-;      set pcolor thecolor
-;    ]
-;  ]
-end
-
-to calc-desired-direction
-  ask persons [
-    if [patch-id] of patch-here != 1 [
-      let goal min-one-of (patches with [ patch-id = 1 ]) [ distance myself ]
-      set desired-direction towards goal
-    ]
-  ]
-end
-
-to calc-driving-force
-  ask persons [
-    set driving-forcex (1 / tau) * (max-speed * (sin desired-direction) - vx)
-    set driving-forcey (1 / tau) * (max-speed * (cos desired-direction) - vy)
-  ]
-end
-
-to calc-obstacle-force
-  ask persons [
-    set obstacle-forcex 0
-    set obstacle-forcey 0
-    if [patch-id] of patch-here != 1 [
-      ask patches with [ patch-id = -1 ] [
-        let to-obstacle (towards myself) - 180
-        let obstacle-force (- u0) * exp (- (distance myself) / r)
-        ask myself [
-          set obstacle-forcex obstacle-forcex + obstacle-force * (sin to-obstacle)
-          set obstacle-forcey obstacle-forcey + obstacle-force * (cos to-obstacle)
-        ]
+  if show-heat-map? [
+    ask patches with [ pcolor != brown ] [
+      let thecolor (9.9 - (path * 0.15))
+      if thecolor < 0.001 [
+        set thecolor 0.001
       ]
+      set pcolor thecolor
     ]
-  ]
-end
-
-to calc-territorial-forces
-  ask persons [
-    set territorial-forcex 0
-    set territorial-forcey 0
-    ask other persons with [ distance myself > 0 ] [
-      let to-agent (towards myself) - 180
-      let rabx [xcor] of myself - xcor
-      let raby [ycor] of myself - ycor
-      let speed magnitude vx vy
-      let to-root ((magnitude rabx raby) + (magnitude (rabx - (speed * sin desired-direction)) (raby - (speed * cos desired-direction)))) ^ 2 - speed ^ 2
-      if to-root < 0 [
-        set to-root 0
-      ]
-      let b 0.5 * sqrt to-root
-      let agent-force (- v0) * exp (- b / sigma)
-      ask myself [
-        let agent-forcex agent-force * (sin to-agent)
-        let agent-forcey agent-force * (cos to-agent)
-        ;; modify the effect this force has based on whether or not it is in the field of view
-        let vision field-of-view-modifier driving-forcex driving-forcey agent-forcex agent-forcey
-        set territorial-forcex territorial-forcex + agent-forcex * vision
-        set territorial-forcey territorial-forcey + agent-forcey * vision
-      ]
-    ]
-  ]
-end
-
-to-report magnitude [ x y ]
-  report sqrt ((x ^ 2) + (y ^ 2))
-end
-
-to-report field-of-view-modifier [desiredx desiredy forcex forcey]
-  ifelse (desiredx * (- forcex) + desiredy * (- forcey)) >= (magnitude forcex forcey) * cos (field-of-view / 2)
-  [ report 1 ]
-  [ report c ]
-end
-
-to move-persons
-  if count persons > 0 [
-    set move-speed (count persons with [ moved? = true ] / count persons)
-  ]
-
-  ask persons [
-    let ax driving-forcex + obstacle-forcex + territorial-forcex
-    let ay driving-forcey + obstacle-forcey + territorial-forcey
-
-    set vx vx + ax
-    set vy vy + ay
-
-    let vmag magnitude vx vy
-    let multiplier 1
-    if vmag > max-speed [
-      set multiplier max-speed / vmag
-    ]
-
-    set vx vx * multiplier
-    set vy vy * multiplier
-
-    set xcor xcor + vx
-    set ycor ycor + vy
-  ]
-
-  ask patches with [ patch-id = 1 ] [
-    ask persons-here [ die ]
   ]
 end
 @#$#@#$#@
@@ -286,10 +180,10 @@ NIL
 1
 
 BUTTON
-86
-21
-149
-54
+89
+22
+152
+55
 NIL
 go
 T
@@ -304,35 +198,35 @@ NIL
 
 INPUTBOX
 9
-59
+76
 158
-119
-num-people
-50.0
+136
+people
+500.0
 1
 0
 Number
 
 SLIDER
-9
-125
+8
+148
+180
 181
-158
 exit-width
 exit-width
 1
 15
-2.0
+1.0
 1
 1
 NIL
 HORIZONTAL
 
 SWITCH
-9
-164
-171
-197
+6
+196
+168
+229
 show-heat-map?
 show-heat-map?
 0
@@ -340,10 +234,10 @@ show-heat-map?
 -1000
 
 BUTTON
-9
-202
-172
-235
+8
+242
+171
+275
 show elevation graph
 show-elevation
 NIL
@@ -355,164 +249,6 @@ NIL
 NIL
 NIL
 1
-
-TEXTBOX
-7
-247
-157
-265
-Force Constants
-11
-0.0
-1
-
-SLIDER
-10
-430
-182
-463
-tau
-tau
-1
-30
-20.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-11
-268
-183
-301
-v0
-v0
-0
-10
-0.5
-0.1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-10
-308
-182
-341
-sigma
-sigma
-0.1
-2
-0.5
-0.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
-10
-348
-182
-381
-u0
-u0
-0
-20
-10.0
-0.1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-10
-390
-182
-423
-r
-r
-0.15
-1
-0.15
-0.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
-233
-538
-405
-571
-field-of-view
-field-of-view
-0
-360
-200.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-411
-538
-583
-571
-c
-c
-0
-1
-0.0
-0.1
-1
-NIL
-HORIZONTAL
-
-TEXTBOX
-741
-34
-1084
-76
-Note:\nTurtles movement based on social force model
-11
-0.0
-1
-
-SLIDER
-11
-486
-183
-519
-max-speed
-max-speed
-0
-1
-0.3
-0.1
-1
-NIL
-HORIZONTAL
-
-PLOT
-849
-94
-1049
-244
-plot 1
-time
-count
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"persons-dead" 1.0 0 -16777216 true "" "plot dead"
 
 @#$#@#$#@
 ## WHAT IS IT?

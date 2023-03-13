@@ -3,13 +3,18 @@ breed [ persons person ]
 globals [
   upper              ; the upper edge of the exit
   lower              ; the lower edge of the exit
-  alist              ; array used in calculating the shortest distance to exits
-  move-speed         ; how many patches did persons move in last tick on average
-  dead               ; count persons dead
+  goal
+  walls
+  doors
+  exits
+  corners-top-left
+  corners-top-right
+  corners-bottom-left
+  corners-bottom-right
 ]
 
 persons-own [
-  moved?             ; if agent moved in this tick
+  went-through
   vx                 ; x velocity
   vy                 ; y velocity
   desired-direction  ; person desired direction towards exit
@@ -22,10 +27,10 @@ persons-own [
 ]
 
 patches-own [
-  path               ; how many times it has been chosen as a path
   patch-id           ; if exit, wall, and obstacle = 1, if floor 0
-  elevation          ; the shortest distance to exit
   name               ; patches id
+  value              ; patches count of each type of structure
+  door-value
 ]
 
 to setup
@@ -33,34 +38,31 @@ to setup
   reset-ticks
   set-env
   set-agent
-  set-elevation
+  set-variable
+  evaluate-way
+end
+
+to calc
+  calc-desired-direction
 end
 
 to go
-  calc-desired-direction
+
   calc-driving-force
   calc-obstacle-force
   if any? other persons [
     calc-territorial-forces
   ]
   move-persons
+;  change-heading
   if count persons = 0 [ stop ]
   tick
 end
 
-to show-elevation
-;  let min-e min [elevation] of patches with [ pcolor != brown and patch-id != 1 and patch-id != 2 ]
-;  let max-e max [elevation] of patches with [ pcolor != brown and patch-id != 1 and patch-id != 2 ]
-;  ask patches with [ pcolor != brown and patch-id != 2 ] [
-;    set pcolor scale-color pink elevation (max-e + 1) min-e
-;  ]
-end
-
-; ============================ SETUP BUTTON ============================
+; ======================================================== SETUP BUTTON ========================================================
 to set-env
   ask patches [
     set pcolor white
-    set path 0
   ]
 
   ;; set boundary patches as walls
@@ -80,23 +82,62 @@ to set-env
   ;; create the exit door
   set upper round (exit-width / 2)
   set lower 0 - (exit-width - upper)
-  ask patches with [ pxcor = -15 and pycor < upper and pycor >= lower ] [
+  ask patches with [ pxcor = min-pxcor and pycor < upper and pycor >= lower ] [
     set pcolor green - 3
-    set patch-id 1
-    set name "door"
+    set patch-id 2
+    set name "exit"
   ]
-;  ask patches with [ pxcor = 15 and pycor < upper and pycor >= lower ] [
-;    set pcolor green - 3
-;    set patch-id 1
-;    set name "door"
+
+  ;; create the room walls
+  ask patches [
+    set-walls 0 -15 0 15
+  ]
+
+  ;; create the room doors
+  ask patches [
+    set-doors 0 -1 0 1
+  ]
+
+  ;; create the obstacle
+;  ask patches with [ pxcor = 0 and pycor > -6 and pycor < 6] [
+;    set pcolor gray
+;    set patch-id -1
+;    set name "obstacle"
 ;  ]
-  ask patches with [ pxcor = 0 and pycor > -6 and pycor < 6] [
-    set pcolor gray
-    set patch-id -1
-    set name "obstacle"
+
+  ask patches [
+;    set plabel patch-id
+;    set plabel-color black
   ]
 end
 
+;; create the door for each room
+to set-doors [ startx starty endx endy ]
+  let door patches with [
+    (pxcor >= startx and pxcor <= endx)
+    and
+    (pycor >= starty and pycor <= endy)
+  ]
+  ask door [
+    set name "door"
+    set patch-id 1
+    set pcolor green + 1
+  ]
+end
+
+;; create a walls separating each room
+to set-walls [ startx starty endx endy ]
+  let wall patches with [
+    (pxcor >= startx and pxcor <= endx)
+    and
+    (pycor >= starty and pycor <= endy)
+  ]
+  ask wall [
+    set name "wall"
+    set patch-id -1
+    set pcolor brown
+  ]
+end
 
 to set-agent
   clear-turtles
@@ -113,38 +154,314 @@ to set-agent
   ]
 end
 
-to set-elevation
-;  ask patches [
-;    set alist []
-;    ask patches with [ patch-id = 1 ] [
-;      set alist
-;      lput distance myself alist
-;    ]
-;    set elevation min alist
-;  ]
-;
-;  ask patches with [ pcolor = brown ] [
-;    set elevation 999999999
-;  ]
+to set-variable
+  ; room corner arrays
+  let corners-top-left-array []
+  let corners-top-right-array []
+  let corners-bottom-left-array []
+  let corners-bottom-right-array []
+
+  ; get corners in the map
+  ask patches with [ patch-id = -1 ] [
+    let cur-x pxcor
+    let cur-y pycor
+    let neighCornerCount count neighbors4 with [ patch-id != 0 and pxcor = cur-x and pycor < cur-y ] + count neighbors4 with [ patch-id != 0 and pxcor > cur-x and pycor = cur-y ]
+    if (neighCornerCount = 2) [
+      set corners-top-left-array lput self corners-top-left-array
+    ]
+
+    set neighCornerCount count neighbors4 with [ patch-id != 0 and pxcor = cur-x and pycor < cur-y ] + count neighbors4 with [ patch-id != 0 and pxcor < cur-x and pycor = cur-y ]
+    if (neighCornerCount = 2) [
+      set corners-top-right-array lput self corners-top-right-array
+    ]
+
+    set neighCornerCount count neighbors4 with [ patch-id != 0 and pxcor = cur-x and pycor > cur-y ] + count neighbors4 with [ patch-id != 0 and pxcor > cur-x and pycor = cur-y ]
+    if (neighCornerCount = 2) [
+      set corners-bottom-left-array lput self corners-bottom-left-array
+    ]
+
+    set neighCornerCount count neighbors4 with [ patch-id != 0 and pxcor = cur-x and pycor > cur-y ] + count neighbors4 with [ patch-id != 0 and pxcor < cur-x and pycor = cur-y ]
+    if (neighCornerCount = 2) [
+      set corners-bottom-right-array lput self corners-bottom-right-array
+    ]
+  ]
+
+  ; converting corner list into agentset
+  set corners-top-left patches with [ member? self corners-top-left-array = true ]
+  set corners-top-right patches with [ member? self corners-top-right-array = true ]
+  set corners-bottom-left patches with [ member? self corners-bottom-left-array = true ]
+  set corners-bottom-right patches with [ member? self corners-bottom-right-array = true ]
+
+  set walls patches with [ patch-id = -1 ]
+  set doors patches with [ patch-id = 1 ]
+  set exits patches with [ patch-id = 2 ]
 end
 
-; ============================ GO BUTTON ============================
-to heat-map
-;  if show-heat-map? [
-;    ask patches with [ pcolor != brown and patch-id != 2 ] [
-;      let thecolor (9.9 - (path * 0.15))
-;      if thecolor < 0.001 [
-;        set thecolor 0.001
-;      ]
-;      set pcolor thecolor
-;    ]
-;  ]
+to evaluate-way
+  ask walls [ set value 100000 ]
+  ask exits [ set value 0 ]
+  ask doors [
+    set door-value ((distance (min-one-of exits [distance myself])) / 3)
+    set value 0 ]
+
+  ; detect room
+  ask patches with [ patch-id = 0 or patch-id = 1 ] [
+    let cur-x pxcor
+    let cur-y pycor
+
+    let top-wall-y -1
+    let bottom-wall-y -1
+    let left-wall-x -1
+    let right-wall-x -1
+
+    ; closest walls
+    ask min-one-of patches with [ patch-id != 0 and pxcor = cur-x and pycor > cur-y ] [ distance myself ] [ set top-wall-y pycor]
+    ask min-one-of patches with [ patch-id != 0 and pxcor = cur-x and pycor < cur-y ] [ distance myself ] [ set bottom-wall-y pycor ]
+    ask min-one-of patches with [ patch-id != 0 and pycor = cur-y and pxcor < cur-x ] [ distance myself ] [ set left-wall-x pxcor ]
+    ask min-one-of patches with [ patch-id != 0 and pycor = cur-y and pxcor > cur-x ] [ distance myself ] [ set right-wall-x pxcor ]
+
+    ; room corners
+    let corner-tl min-one-of corners-top-left with [ pxcor < cur-x and pycor > cur-y and pxcor = left-wall-x and pycor = top-wall-y ] [ distance myself ]
+    let corner-tr min-one-of corners-top-right with [ pxcor > cur-x and pycor > cur-y and pxcor = right-wall-x and pycor = top-wall-y ] [ distance myself ]
+    let corner-bl min-one-of corners-bottom-left with [ pxcor < cur-x and pycor < cur-y and pxcor = left-wall-x and pycor = bottom-wall-y ] [ distance myself ]
+    let corner-br min-one-of corners-bottom-right with [ pxcor > cur-x and pycor < cur-y and pxcor = right-wall-x and pycor = bottom-wall-y ] [ distance myself ]
+
+    ifelse (is-patch? corner-tl and is-patch? corner-tr and is-patch? corner-bl and is-patch? corner-br) [
+      ; enclosed room
+      let tl-x -1
+      let tl-y -1
+      ask corner-tl [
+        set tl-x pxcor
+        set tl-y pycor
+      ]
+
+      let tr-x -1
+      let tr-y -1
+      ask corner-tr [
+        set tr-x pxcor
+        set tr-y pycor
+      ]
+
+      let bl-x -1
+      let bl-y -1
+      ask corner-bl [
+        set bl-x pxcor
+        set bl-y pycor
+      ]
+
+      let br-x -1
+      let br-y -1
+      ask corner-br [
+        set br-x pxcor
+        set br-y pycor
+      ]
+
+      ; is exit
+      let exitsCount count exits with [ pycor = tl-y and pxcor > tl-x and pxcor < tr-x ]                 ; top wall
+      set exitsCount exitsCount + count exits with [ pycor = bl-y and pxcor > bl-x and pxcor < br-x ]    ; bottom wall
+      set exitsCount exitsCount + count exits with [ pxcor = tl-x and pycor > bl-y and pycor < tl-y ]    ; left wall
+      set exitsCount exitsCount + count exits with [ pxcor = tr-x and pycor > br-y and pycor < tr-y ]    ; right wall
+
+      ; is doors
+      let doorsCount count doors with [ pycor = tl-y and pxcor > tl-x and pxcor < tr-x ]                 ; top wall
+      set doorsCount doorsCount + count doors with [ pycor = bl-y and pxcor > bl-x and pxcor < br-x ]    ; bottom wall
+      set doorsCount doorsCount + count doors with [ pxcor = tl-x and pxcor > bl-y and pycor < tl-y ]    ; left wall
+      set doorsCount doorsCount + count doors with [ pxcor = tr-x and pycor > br-y and pycor < tr-y ]    ; right wall
+
+      ifelse (exitsCount > 1) [
+        set value ((distance (min-one-of exits with [
+          (pycor = tl-y and pxcor > tl-x and pxcor < tr-x) or    ; top exit
+          (pycor = bl-y and pxcor > bl-x and pxcor < br-x) or    ; bottom exit
+          (pxcor = tl-x and pycor > bl-y and pycor < tl-y) or    ; left exit
+          (pxcor = tr-x and pycor > br-y and pycor < tr-y)       ; right exit
+          ]
+          [ distance myself ]
+        )))
+      ] [
+        ifelse (doorsCount > 1) [
+          ; head to doors in room that are closest to nearest exit
+          let closest-door-to-exit min-one-of doors with [
+            (pycor = tl-y and pxcor > tl-x and pycor < tr-x) or  ; top door
+            (pycor = bl-y and pxcor > bl-x and pycor < br-x) or  ; bottom door
+            (pxcor = tl-x and pycor > bl-y and pycor < tl-y) or  ; left door
+            (pxcor = tr-x and pycor > br-y and pycor < tr-y)     ; right door
+          ] [
+            door-value
+          ]
+
+          set cur-x 0
+          set cur-y 0
+          let closest-door-value 0
+          ask closest-door-to-exit [
+            set closest-door-value door-value
+            set cur-x pxcor
+            set cur-y pycor
+          ]
+
+          set value ((distance closest-door-to-exit) + closest-door-value * 5)
+        ] [
+          ; no doors or already in hallway
+          set value ((distance (min-one-of exits [distance myself])))
+        ]
+      ]
+    ]
+    [
+      ; open space
+      set value ((distance (min-one-of exits [distance myself])))
+    ]
+  ]
+end
+
+; ======================================================== GO BUTTON ========================================================
+
+;when people enter door they go through and dont return
+to switch-room
+  ask persons [
+    let cur-patch patch-here
+    let cur-patch-id 99
+    ask cur-patch [
+      set cur-patch-id patch-id
+    ]
+
+    if (cur-patch-id = 1) [
+      set went-through scan-door xcor ycor
+    ]
+  ]
+end
+
+;finds all door patches connected
+to-report scan-door [cur-x cur-y]
+  let door-patches []
+  let cur-patch patch cur-x cur-y
+  if (not member? cur-patch door-patches) [
+    set door-patches lput cur-patch door-patches
+  ]
+  set door-patches sentence door-patches scan-door-cycle (cur-x + 1) cur-y 1 "x"
+  set door-patches sentence door-patches scan-door-cycle (cur-x - 1) cur-y -1 "x"
+  set door-patches sentence door-patches scan-door-cycle cur-x (cur-y + 1) 1 "y"
+  set door-patches sentence door-patches scan-door-cycle cur-x (cur-y - 1) -1 "y"
+
+  report door-patches
+end
+
+;support function for scan-door
+to-report scan-door-cycle [cur-x cur-y inc inccord]
+  let door-patches []
+
+  if (cur-x <= max-pxcor and cur-y <= max-pycor) [
+    loop [
+      let cur-patch patch cur-x cur-y
+      let cur-patch-id 99
+      ask cur-patch [
+        set cur-patch-id patch-id
+      ]
+
+      ifelse (cur-patch-id != 1) [
+        report door-patches
+      ] [
+        if (not member? cur-patch door-patches) [
+          set door-patches lput cur-patch door-patches
+        ]
+      ]
+
+      ifelse (inccord = "x") [
+        set cur-x cur-x + inc
+      ] [
+        set cur-y cur-y + inc
+      ]
+    ]
+  ]
+  report door-patches
+end
+
+to calc-desired-direction-backup
+  ask persons [
+    if [patch-id] of patch-here != 2 [
+      let goals min-one-of (patches with [ patch-id = 2 ]) [ distance myself ]   ; sepertinya value dan goal itu sama
+      set desired-direction towards goal
+    ]
+  ]
 end
 
 to calc-desired-direction
+  ask patches with [ patch-id = 0 or patch-id = 1 ] [
+    let cur-x pxcor
+    let cur-y pycor
+
+    let top-wall-y -1
+    let bottom-wall-y -1
+    let left-wall-x -1
+    let right-wall-x -1
+
+    ; closest walls
+    ask min-one-of patches with [ patch-id != 0 and pxcor = cur-x and pycor > cur-y ] [ distance myself ] [ set top-wall-y pycor]
+    ask min-one-of patches with [ patch-id != 0 and pxcor = cur-x and pycor < cur-y ] [ distance myself ] [ set bottom-wall-y pycor ]
+    ask min-one-of patches with [ patch-id != 0 and pycor = cur-y and pxcor < cur-x ] [ distance myself ] [ set left-wall-x pxcor ]
+    ask min-one-of patches with [ patch-id != 0 and pycor = cur-y and pxcor > cur-x ] [ distance myself ] [ set right-wall-x pxcor ]
+
+    ; room corners
+    let corner-tl min-one-of corners-top-left with [ pxcor < cur-x and pycor > cur-y and pxcor = left-wall-x and pycor = top-wall-y ] [ distance myself ]
+    let corner-tr min-one-of corners-top-right with [ pxcor > cur-x and pycor > cur-y and pxcor = right-wall-x and pycor = top-wall-y ] [ distance myself ]
+    let corner-bl min-one-of corners-bottom-left with [ pxcor < cur-x and pycor < cur-y and pxcor = left-wall-x and pycor = bottom-wall-y ] [ distance myself ]
+    let corner-br min-one-of corners-bottom-right with [ pxcor > cur-x and pycor < cur-y and pxcor = right-wall-x and pycor = bottom-wall-y ] [ distance myself ]
+
+    if (is-patch? corner-tl and is-patch? corner-tr and is-patch? corner-bl and is-patch? corner-br) [
+      ; enclosed room
+      let tl-x -1
+      let tl-y -1
+      ask corner-tl [
+        set tl-x pxcor
+        set tl-y pycor
+      ]
+
+      let tr-x -1
+      let tr-y -1
+      ask corner-tr [
+        set tr-x pxcor
+        set tr-y pycor
+      ]
+
+      let bl-x -1
+      let bl-y -1
+      ask corner-bl [
+        set bl-x pxcor
+        set bl-y pycor
+      ]
+
+      let br-x -1
+      let br-y -1
+      ask corner-br [
+        set br-x pxcor
+        set br-y pycor
+      ]
+
+      ; is exit
+      let exitsCount count exits with [ pycor = tl-y and pxcor > tl-x and pxcor < tr-x ]                 ; top wall
+      set exitsCount exitsCount + count exits with [ pycor = bl-y and pxcor > bl-x and pxcor < br-x ]    ; bottom wall
+      set exitsCount exitsCount + count exits with [ pxcor = tl-x and pycor > bl-y and pycor < tl-y ]    ; left wall
+      set exitsCount exitsCount + count exits with [ pxcor = tr-x and pycor > br-y and pycor < tr-y ]    ; right wall
+
+      ; is doors
+      let doorsCount count doors with [ pycor = tl-y and pxcor > tl-x and pxcor < tr-x ]                 ; top wall
+      set doorsCount doorsCount + count doors with [ pycor = bl-y and pxcor > bl-x and pxcor < br-x ]    ; bottom wall
+      set doorsCount doorsCount + count doors with [ pxcor = tl-x and pxcor > bl-y and pycor < tl-y ]    ; left wall
+      set doorsCount doorsCount + count doors with [ pxcor = tr-x and pycor > br-y and pycor < tr-y ]    ; right wall
+
+      ; go to the nearest exit or door in the room
+      if (exitsCount > 1) [
+        set goal (min-one-of exits with [
+          (pycor = tl-y and pxcor > tl-x and pxcor < tr-x) or    ; top exit
+          (pycor = bl-y and pxcor > bl-x and pxcor < br-x) or    ; bottom exit
+          (pxcor = tl-x and pycor > bl-y and pycor < tl-y) or    ; left exit
+          (pxcor = tr-x and pycor > br-y and pycor < tr-y)       ; right exit
+          ] [ distance myself ]
+        )
+      ]
+    ]
+  ]
+
   ask persons [
-    if [patch-id] of patch-here != 1 [
-      let goal min-one-of (patches with [ patch-id = 1 ]) [ distance myself ]
+    if [patch-id] of patch-here != 2 [
       set desired-direction towards goal
     ]
   ]
@@ -161,8 +478,8 @@ to calc-obstacle-force
   ask persons [
     set obstacle-forcex 0
     set obstacle-forcey 0
-    if [patch-id] of patch-here != 1 [
-      ask patches with [ patch-id = -1 ] [
+    if [patch-id] of patch-here != 2 [
+      ask patches with [ patch-id = -1 ] [     ;; walls
         let to-obstacle (towards myself) - 180
         let obstacle-force (- u0) * exp (- (distance myself) / r)
         ask myself [
@@ -212,10 +529,6 @@ to-report field-of-view-modifier [desiredx desiredy forcex forcey]
 end
 
 to move-persons
-  if count persons > 0 [
-    set move-speed (count persons with [ moved? = true ] / count persons)
-  ]
-
   ask persons [
     let ax driving-forcex + obstacle-forcex + territorial-forcex
     let ay driving-forcey + obstacle-forcey + territorial-forcey
@@ -236,7 +549,7 @@ to move-persons
     set ycor ycor + vy
   ]
 
-  ask patches with [ patch-id = 1 ] [
+  ask patches with [ patch-id = 2 ] [
     ask persons-here [ die ]
   ]
 end
@@ -244,11 +557,11 @@ end
 GRAPHICS-WINDOW
 210
 10
-683
-484
+828
+329
 -1
 -1
-15.0
+10.0
 1
 8
 1
@@ -258,8 +571,8 @@ GRAPHICS-WINDOW
 0
 0
 1
--15
-15
+-30
+30
 -15
 15
 0
@@ -308,7 +621,7 @@ INPUTBOX
 158
 119
 num-people
-50.0
+100.0
 1
 0
 Number
@@ -322,7 +635,7 @@ exit-width
 exit-width
 1
 15
-2.0
+3.0
 1
 1
 NIL
@@ -339,28 +652,11 @@ show-heat-map?
 1
 -1000
 
-BUTTON
-9
-202
-172
-235
-show elevation graph
-show-elevation
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
 TEXTBOX
 7
-247
+220
 157
-265
+238
 Force Constants
 11
 0.0
@@ -368,9 +664,9 @@ Force Constants
 
 SLIDER
 10
-430
+403
 182
-463
+436
 tau
 tau
 1
@@ -383,9 +679,9 @@ HORIZONTAL
 
 SLIDER
 11
-268
+241
 183
-301
+274
 v0
 v0
 0
@@ -398,9 +694,9 @@ HORIZONTAL
 
 SLIDER
 10
-308
+281
 182
-341
+314
 sigma
 sigma
 0.1
@@ -413,9 +709,9 @@ HORIZONTAL
 
 SLIDER
 10
-348
+321
 182
-381
+354
 u0
 u0
 0
@@ -428,9 +724,9 @@ HORIZONTAL
 
 SLIDER
 10
-390
+363
 182
-423
+396
 r
 r
 0.15
@@ -442,10 +738,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-233
-538
-405
-571
+10
+486
+182
+519
 field-of-view
 field-of-view
 0
@@ -457,10 +753,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-411
-538
-583
-571
+10
+527
+182
+560
 c
 c
 0
@@ -472,25 +768,25 @@ NIL
 HORIZONTAL
 
 TEXTBOX
-741
-34
-1084
-76
+847
+32
+1190
+74
 Note:\nTurtles movement based on social force model
 11
 0.0
 1
 
 SLIDER
-11
-486
-183
-519
+10
+446
+182
+479
 max-speed
 max-speed
 0
 1
-0.3
+0.4
 0.1
 1
 NIL
@@ -513,6 +809,23 @@ false
 "" ""
 PENS
 "persons-dead" 1.0 0 -16777216 true "" "plot dead"
+
+BUTTON
+316
+419
+379
+452
+NIL
+calc
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
