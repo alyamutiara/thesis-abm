@@ -3,9 +3,6 @@ breed [ persons person ]
 globals [
   upper              ; the upper edge of the exit
   lower              ; the lower edge of the exit
-  alist              ; array used in calculating the shortest distance to exits
-  move-speed         ; how many patches did persons move in last tick on average
-  dead               ; count persons dead
   walls
   doors
   exits
@@ -16,7 +13,6 @@ globals [
 ]
 
 persons-own [
-  moved?             ; if agent moved in this tick
   went-through
   vx                 ; x velocity
   vy                 ; y velocity
@@ -30,9 +26,7 @@ persons-own [
 ]
 
 patches-own [
-  path               ; how many times it has been chosen as a path
   patch-id           ; if exit, wall, and obstacle = 1, if floor 0
-  elevation          ; the shortest distance to exit
   name               ; patches id
   value              ; patches count of each type of structure
   door-value
@@ -44,6 +38,11 @@ to setup
   reset-ticks
   set-env
   set-agent
+;  set-variable
+end
+
+to mapping
+  set-variable
 end
 
 to go
@@ -63,7 +62,6 @@ end
 to set-env
   ask patches [
     set pcolor white
-    set path 0
   ]
 
   ;; set boundary patches as walls
@@ -107,18 +105,8 @@ to set-env
     set-doors 20 20 6 7                      ; pintu ruang IV
   ]
 
-  ;; create the obstacle
-;  ask patches with [ pxcor = 0 and pycor > -6 and pycor < 6] [
-;    set pcolor gray
-;    set patch-id -1
-;    set name "obstacle"
-;  ]
-
-;  ask patches [
-;    set plabel patch-id
-;    set plabel-color black
-;    set plabel (word pxcor","pycor)
-;  ]
+  set exits patches with [ patch-id = 2 ]
+  set doors patches with [ patch-id = 1 ]
 end
 
 ;; create the door for each room
@@ -153,8 +141,8 @@ to set-agent
   clear-turtles
   ;; create agents
   create-persons num-people [
-    move-to one-of patches with [ pcolor = white and pxcor != 15 and (not any? other turtles-here) ]
-    set color blue
+    move-to one-of patches with [ patch-id = 0 and (not any? other turtles-here) ]
+    set color red
     set shape "circle"
     let init-direction 0 + random 360     ;; give the turtles an initial nudge towards the goal
     set vx sin init-direction
@@ -164,9 +152,157 @@ to set-agent
   ]
 end
 
-; ======================================================== GO BUTTON ========================================================
+to set-variable
+  ask doors [
+    set door-value (min-one-of exits [ distance myself ])
+  ]
 
+  ; room corner arrays
+  let corners-top-left-array []
+  let corners-top-right-array []
+  let corners-bottom-left-array []
+  let corners-bottom-right-array []
+
+  ; get corners in the map
+  ask patches with [ patch-id = -1 ] [
+    let cur-x pxcor
+    let cur-y pycor
+
+    let neighCornerCount count neighbors4 with [ patch-id != 0 and pxcor = cur-x and pycor < cur-y ] + count neighbors4 with [ patch-id != 0 and pxcor > cur-x and pycor = cur-y ]
+    if (neighCornerCount = 2) [
+      set corners-top-left-array lput self corners-top-left-array
+    ]
+
+    set neighCornerCount count neighbors4 with [ patch-id != 0 and pxcor = cur-x and pycor < cur-y ] + count neighbors4 with [ patch-id != 0 and pxcor < cur-x and pycor = cur-y ]
+    if (neighCornerCount = 2) [
+      set corners-top-right-array lput self corners-top-right-array
+    ]
+
+    set neighCornerCount count neighbors4 with [ patch-id != 0 and pxcor = cur-x and pycor > cur-y ] + count neighbors4 with [ patch-id != 0 and pxcor > cur-x and pycor = cur-y ]
+    if (neighCornerCount = 2) [
+      set corners-bottom-left-array lput self corners-bottom-left-array
+    ]
+
+    set neighCornerCount count neighbors4 with [ patch-id != 0 and pxcor = cur-x and pycor > cur-y ] + count neighbors4 with [ patch-id != 0 and pxcor < cur-x and pycor = cur-y ]
+    if (neighCornerCount = 2) [
+      set corners-bottom-right-array lput self corners-bottom-right-array
+    ]
+  ]
+
+  ; converting corner list into agentset
+  set corners-top-left patches with [ member? self corners-top-left-array = true ]
+  set corners-top-right patches with [ member? self corners-top-right-array = true ]
+  set corners-bottom-left patches with [ member? self corners-bottom-left-array = true ]
+  set corners-bottom-right patches with [ member? self corners-bottom-right-array = true ]
+
+  ask patches with [ patch-id = 0 or patch-id = 1 ] [
+    let cur-x pxcor
+    let cur-y pycor
+
+    let top-wall-y -1
+    let bottom-wall-y -1
+    let left-wall-x -1
+    let right-wall-x -1
+
+    ;closest wall
+    ask min-one-of patches with [ patch-id != 0 and pxcor = cur-x and pycor > cur-y ] [ distance myself ] [ set top-wall-y pycor]
+    ask min-one-of patches with [ patch-id != 0 and pxcor = cur-x and pycor < cur-y ] [ distance myself ] [ set bottom-wall-y pycor ]
+    ask min-one-of patches with [ patch-id != 0 and pycor = cur-y and pxcor < cur-x ] [ distance myself ] [ set left-wall-x pxcor ]
+    ask min-one-of patches with [ patch-id != 0 and pycor = cur-y and pxcor > cur-x ] [ distance myself ] [ set right-wall-x pxcor ]
+
+    ;room corners
+    let corner-tl min-one-of corners-top-left with [ pxcor < cur-x and pycor > cur-y and pxcor = left-wall-x and pycor = top-wall-y ] [ distance myself ]
+    let corner-tr min-one-of corners-top-right with [ pxcor > cur-x and pycor > cur-y and pxcor = right-wall-x and pycor = top-wall-y ] [ distance myself ]
+    let corner-bl min-one-of corners-bottom-left with [ pxcor < cur-x and pycor < cur-y and pxcor = left-wall-x and pycor = bottom-wall-y ] [ distance myself ]
+    let corner-br min-one-of corners-bottom-right with [ pxcor > cur-x and pycor < cur-y and pxcor = right-wall-x and pycor = bottom-wall-y ] [ distance myself ]
+
+    if (is-patch? corner-tl and is-patch? corner-tr and is-patch? corner-bl and is-patch? corner-br) [
+      ;enclosed room
+      let tl-x -1
+      let tl-y -1
+      ask corner-tl [
+        set tl-x pxcor
+        set tl-y pycor
+      ]
+
+      let tr-x -1
+      let tr-y -1
+      ask corner-tr [
+        set tr-x pxcor
+        set tr-y pycor
+      ]
+
+      let bl-x -1
+      let bl-y -1
+      ask corner-bl [
+        set bl-x pxcor
+        set bl-y pycor
+      ]
+
+      let br-x -1
+      let br-y -1
+      ask corner-br [
+        set br-x pxcor
+        set br-y pycor
+      ]
+
+      ; is exit
+      let exitsCount count exits with [ pycor = tl-y and pxcor > tl-x and pxcor < tr-x ]                 ; top wall
+      set exitsCount exitsCount + count exits with [ pycor = bl-y and pxcor > bl-x and pxcor < br-x ]    ; bottom wall
+      set exitsCount exitsCount + count exits with [ pxcor = tl-x and pycor > bl-y and pycor < tl-y ]    ; left wall
+      set exitsCount exitsCount + count exits with [ pxcor = tr-x and pycor > br-y and pycor < tr-y ]    ; right wall
+
+      ; is doors
+      let doorsCount count doors with [ pycor = tl-y and pxcor > tl-x and pxcor < tr-x ]                 ; top wall
+      set doorsCount doorsCount + count doors with [ pycor = bl-y and pxcor > bl-x and pxcor < br-x ]    ; bottom wall
+      set doorsCount doorsCount + count doors with [ pxcor = tl-x and pxcor > bl-y and pycor < tl-y ]    ; left wall
+      set doorsCount doorsCount + count doors with [ pxcor = tr-x and pycor > br-y and pycor < tr-y ]    ; right wall
+
+      ifelse (exitsCount > 1) [
+        set value (min-one-of exits with [
+          (pycor = tl-y and pxcor > tl-x and pxcor < tr-x) or  ;top exit
+          (pycor = bl-y and pxcor > bl-x and pxcor < br-x) or  ;bottom exit
+          (pxcor = tl-x and pycor > bl-y and pycor < tl-y) or  ;left exit
+          (pxcor = tr-x and pycor > br-y and pycor < tr-y)     ;right exit
+        ] [ distance myself ])
+      ] [
+        if (doorsCount > 1) [
+          set value min-one-of doors with [
+            (pycor = tl-y and pxcor > tl-x and pxcor < tr-x) or ;top door
+            (pycor = bl-y and pxcor > bl-x and pxcor < br-x) or ;bottom door
+            (pxcor = tl-x and pycor > bl-y and pycor < tl-y) or ;left door
+            (pxcor = tr-x and pycor > br-y and pycor < tr-y) ;right door
+          ] [ distance myself ]
+        ]
+      ]
+    ]
+  ]
+
+  ask patches with [ patch-id = 1 ] [
+    set value min-one-of (patches with [ patch-id = 2 ]) [ distance myself ]
+;    set plabel value set plabel-color black
+  ]
+end
+
+; ======================================================== GO BUTTON ========================================================
 to calc-desired-direction
+  ask patches with [ value != 0 ][
+    ask persons [
+      if [patch-id] of patch-here != 2 [
+        ifelse [patch-id] of patch-here = -1 [
+          set goal min-one-of (patches with [ patch-id = 2 ]) [ distance myself ]
+        ] [
+          set goal value
+        ]
+        set desired-direction towards goal
+;        set label who
+;        set label-color black
+      ]
+    ]
+  ]
+end
+
+to calc-desired-direction-backup2
   ask persons [
     let cur-patch patch-here
     if [patch-id] of patch-here != 2 [
@@ -251,11 +387,8 @@ to-report field-of-view-modifier [desiredx desiredy forcex forcey]
   [ report c ]
 end
 
-to move-persons
-  if count persons > 0 [
-    set move-speed (count persons with [ moved? = true ] / count persons)
-  ]
 
+to move-persons
   ask persons [
     let ax driving-forcex + obstacle-forcex + territorial-forcex
     let ay driving-forcey + obstacle-forcey + territorial-forcey
@@ -282,15 +415,15 @@ to move-persons
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-292
+199
 10
-1007
-586
+1015
+667
 -1
 -1
-7.0
+8.0
 1
-6
+10
 1
 1
 1
@@ -326,13 +459,13 @@ NIL
 1
 
 BUTTON
-86
+83
 21
-149
+146
 54
 NIL
 go
-T
+NIL
 1
 T
 OBSERVER
@@ -348,7 +481,7 @@ INPUTBOX
 158
 119
 num-people
-100.0
+10.0
 1
 0
 Number
@@ -417,7 +550,7 @@ sigma
 sigma
 0.1
 2
-0.5
+0.73
 0.01
 1
 NIL
@@ -477,17 +610,17 @@ c
 c
 0
 1
-0.0
+1.0
 0.1
 1
 NIL
 HORIZONTAL
 
 TEXTBOX
-11
-530
-354
-572
+13
+736
+356
+778
 Note:\nTurtles movement based on social force model
 11
 0.0
@@ -507,6 +640,40 @@ max-speed
 1
 NIL
 HORIZONTAL
+
+BUTTON
+11
+533
+74
+566
+NIL
+go
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+95
+535
+181
+568
+NIL
+mapping
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
