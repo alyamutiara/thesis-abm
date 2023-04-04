@@ -90,11 +90,11 @@ to set-env
 ;    set patch-id 1
 ;    set name "door"
 ;  ]
-  ask patches with [ pxcor = 0 and pycor > -6 and pycor < 6] [
-    set pcolor gray
-    set patch-id -1
-    set name "obstacle"
-  ]
+;  ask patches with [ pxcor = 0 and pycor > -6 and pycor < 6] [
+;    set pcolor gray
+;    set patch-id -1
+;    set name "obstacle"
+;  ]
 end
 
 
