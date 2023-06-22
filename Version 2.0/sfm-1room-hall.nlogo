@@ -322,6 +322,7 @@ to move-persons
         set xcor xcor - xcor
         set ycor ycor - ycor
         show "I'm stuck!"
+        show error-message
         set counter counter - 1
         show counter
         if counter = 0 [
@@ -670,55 +671,55 @@ NIL
 1
 
 SLIDER
-140
-191
-258
-224
+139
+276
+257
+309
 child-num
 child-num
 0
 100 - (adult-num + senior-num + disable-num)
-9.0
+3.0
 0.1
 1
 %
 HORIZONTAL
 
 SLIDER
-140
-234
-259
-267
+139
+195
+258
+228
 adult-num
 adult-num
 0
 100 - (child-num + senior-num + disable-num)
-60.0
+15.0
 0.1
 1
 %
 HORIZONTAL
 
 SLIDER
-140
-277
-259
-310
+139
+236
+258
+269
 senior-num
 senior-num
 0
 100 - (child-num + adult-num + disable-num)
-30.0
+81.0
 0.1
 1
 %
 HORIZONTAL
 
 SLIDER
-140
-321
-259
-354
+139
+315
+258
+348
 disable-num
 disable-num
 0
@@ -826,7 +827,7 @@ TEXTBOX
 429
 1214
 513
-BehaviorSpace output:\nmean [travel-distance] of persons\nmean [sqrt (vx * vx + vy * vy)] of persons\nticks * 0.2
+BehaviorSpace output:\nmean [travel-distance] of persons\nmean [sqrt (vx * vx + vy * vy)] of persons\nticks * 0.2\ncount persons
 11
 0.0
 1
@@ -1187,14 +1188,16 @@ NetLogo 6.3.0
   <experiment name="s-I.123.1" repetitions="100" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
+    <timeLimit steps="900"/>
     <metric>mean [travel-distance] of persons</metric>
     <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
     <metric>ticks * 0.2</metric>
+    <metric>count persons</metric>
     <enumeratedValueSet variable="sigma">
       <value value="0.6"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="senior-num">
-      <value value="30"/>
+      <value value="15"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="u0">
       <value value="1.6"/>
@@ -1203,7 +1206,7 @@ NetLogo 6.3.0
       <value value="0.3"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="adult-num">
-      <value value="60"/>
+      <value value="81.8"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="child-num">
       <value value="3"/>
@@ -1214,11 +1217,11 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="r">
       <value value="0.4"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="disable-num">
-      <value value="1"/>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="max-speed">
-      <value value="0.2414995409851759"/>
+    <enumeratedValueSet variable="disable-num">
+      <value value="0.2"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="tau">
       <value value="2.5"/>
@@ -1238,6 +1241,640 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="num-people">
       <value value="50"/>
       <value value="250"/>
+      <value value="500"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="s-I.123.2" repetitions="100" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="300"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>ticks * 0.2</metric>
+    <metric>count persons</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="30"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="60"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side A&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="50"/>
+      <value value="250"/>
+      <value value="500"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="S-I.123.3" repetitions="100" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="300"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>ticks * 0.2</metric>
+    <metric>count persons</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side A&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="50"/>
+      <value value="250"/>
+      <value value="500"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="S-I.123.4" repetitions="100" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="300"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>ticks * 0.2</metric>
+    <metric>count persons</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="35"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="35"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="29"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side A&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="50"/>
+      <value value="250"/>
+      <value value="500"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="S-I.123.5" repetitions="100" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="300"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>ticks * 0.2</metric>
+    <metric>count persons</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side A&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="50"/>
+      <value value="250"/>
+      <value value="500"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="s-II.1.123" repetitions="100" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="300"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>ticks * 0.2</metric>
+    <metric>count persons</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="2"/>
+      <value value="5"/>
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side A&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="300"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="s-II.2.12" repetitions="100" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="300"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>ticks * 0.2</metric>
+    <metric>count persons</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="2"/>
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;2-side A&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="300"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="s-II.3.1" repetitions="100" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="300"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>ticks * 0.2</metric>
+    <metric>count persons</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side AC&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="300"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="s-II.4.1" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>count turtles</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side AC&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="300"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="s-II.4.1" repetitions="100" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="300"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>ticks * 0.2</metric>
+    <metric>count persons</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side ABD&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="300"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="s-II.5.1" repetitions="100" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="400"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>ticks * 0.2</metric>
+    <metric>count persons</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side ABCD&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="300"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="S-I.3.5" repetitions="100" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="500"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>ticks * 0.2</metric>
+    <metric>count persons</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side A&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
       <value value="500"/>
     </enumeratedValueSet>
   </experiment>
