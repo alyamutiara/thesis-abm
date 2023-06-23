@@ -25,6 +25,7 @@ persons-own [
   territorial-forcey
   max-speed
   counter
+  energy
 ]
 
 patches-own [
@@ -205,7 +206,7 @@ to set-agent
     initialized-agent
   ]
 
-  ask persons [ set counter 5 ]
+  ask persons [ set counter 5 set label who set label-color black]
 end
 
 to initialized-agent
@@ -333,9 +334,9 @@ to move-persons
     let v (sqrt (vx * vx + vy * vy))
 
     ; kalau lihat api, reroute
-    ifelse [patch-id] of patch-ahead (v * 2) = 1000 and can-move? (v * 2) [
-      set xcor xcor
-      set ycor ycor
+    ifelse [patch-id] of patch-ahead (v) = 1000 and can-move? (v) [
+      set xcor xcor + (- vx * u0 * random-float 1)
+      set ycor ycor + (- vy * u0 * random-float 1)
     ] []
 
     ; kecepatan agen sumbu x dan y
