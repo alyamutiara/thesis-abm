@@ -7,7 +7,7 @@ globals [
   lower              ; the lower edge of the exit
   move-speed         ; how many patches did persons move in last tick on average
   dead               ; count persons dead
-  evacuated
+  done?
 ]
 
 persons-own [
@@ -26,6 +26,7 @@ persons-own [
   max-speed
   counter
   energy
+  state
 ]
 
 patches-own [
@@ -33,6 +34,15 @@ patches-own [
   patch-id           ; if exit = 2, door = 1, wall and obstacle = -1, floor = 0, fire = 1000
   name               ; patches id
 ]
+
+to start
+  set done? false
+  while [not done? or ticks <= 500 ] [
+    carefully [
+      go
+    ] []
+  ]
+end
 
 to setup
   clear-all
@@ -52,7 +62,7 @@ to go
   ask persons [ set counter 5 ]
   move-persons
   if danger? = true [ fire-spread smoke-spread ]
-  if count persons = 0 [ stop ]
+  if count persons with [ state = "alive" ] = 0 [ stop ]
   tick
 end
 
@@ -167,7 +177,6 @@ to set-env
       set plabel "D"
     ]
   ]
-
 end
 
 to set-agent
@@ -206,15 +215,17 @@ to set-agent
     initialized-agent
   ]
 
-  ask persons [ set counter 5 set label who set label-color black]
+  ask persons [ set counter 5 ]
 end
 
 to initialized-agent
   set size 2
   set shape "circle3"
+  set state "alive"
   let init-direction 0 + random 360
   set vx sin init-direction
   set vy cos init-direction
+  set energy random 20 + 80
 end
 
 to blow-up
@@ -334,10 +345,15 @@ to move-persons
     let v (sqrt (vx * vx + vy * vy))
 
     ; kalau lihat api, reroute
-    ifelse [patch-id] of patch-ahead (v) = 1000 and can-move? (v) [
-      set xcor xcor + (- vx * u0 * random-float 1)
-      set ycor ycor + (- vy * u0 * random-float 1)
+    ifelse any? patches with [ patch-id = 1000 ] in-cone (v * visibility * c) field-of-view [
+      set vx ((random 3 - 1) * vx * 3)
+      set vy ((random 3 - 1) * vy * 3)
+      set xcor xcor + vx
+      set ycor ycor + vy
     ] []
+
+    ; kalau kena api
+    agent-burnt
 
     ; kecepatan agen sumbu x dan y
     ifelse can-move? (v * 2) [
@@ -363,6 +379,14 @@ to move-persons
     set travel-distance travel-distance + (sqrt (vx * vx + vy * vy))
   ]
 
+  ; kalau lihat api, reroute
+    ifelse any? patches with [ patch-id = 1000 ] in-cone (v * visibility * c) field-of-view [
+      set vx ((random 3 - 1) * vx * 3)
+      set vy ((random 3 - 1) * vy * 3)
+      set xcor xcor + vx
+      set ycor ycor + vy
+    ] []
+
   ; kalau sudah berhasil evakuasi
   ask patches with [ patch-id = 1 ] [
     if any? persons-here [
@@ -371,24 +395,27 @@ to move-persons
   ]
 end
 
-to avoid-fire
-  ask persons [
-    let fires-in-view fires in-cone (visibility / 2) field-of-view
-    ifelse any? fires-in-view [
-      let suspected-fires one-of fires-in-view
-      let target-heading random 180 + towards suspected-fires
-      set heading target-heading
-      set label "!"
-    ] [
-      set label ""
-    ]
+to agent-burnt
+  if patch-id = 1000 [
+    set energy energy - 5
+  ]
+  if pcolor = grey + 2 [
+    set energy energy - 2
+  ]
+  if energy <= 0 [
+    set color black
+    set vx 0
+    set vy 0
+    set xcor xcor + vx
+    set ycor ycor + vy
+    set state "die"
   ]
 end
 
 to fire-spread
   ask patches with [ patch-id = 1000 ] [
     ask n-of 1 patches in-radius 1 [
-      if random 100 < 5 [
+      if random 100 < fire-spread-velocity [
         sprout-fires 1 [
           set shape "fire"
           set color red
@@ -401,9 +428,16 @@ to fire-spread
 end
 
 to smoke-spread
-  ask fires [
-    ask patches in-radius 1 [
-      set pcolor grey
+  ask patches [
+    if patch-id = 1000 [
+      if random 100 < smoke-spread-velocity [
+        set pcolor grey + 2
+      ]
+    ]
+    if patch-id = 0 and any? neighbors with [ pcolor = grey + 2 ] [
+      if random 100 < smoke-spread-velocity [
+        set pcolor grey + 2
+      ]
     ]
   ]
 end
@@ -480,7 +514,7 @@ GRAPHICS-WINDOW
 -1
 5.0
 1
-8
+10
 1
 1
 1
@@ -516,11 +550,11 @@ NIL
 1
 
 BUTTON
-86
+80
 21
-149
+143
 54
-NIL
+go
 go
 T
 1
@@ -538,7 +572,7 @@ INPUTBOX
 158
 119
 num-people
-50.0
+250.0
 1
 0
 Number
@@ -699,32 +733,15 @@ NIL
 HORIZONTAL
 
 MONITOR
-351
-495
-409
-540
+352
+438
+410
+483
 second
 ticks * 0.2
 2
 1
 11
-
-BUTTON
-156
-22
-219
-55
-NIL
-go
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
 
 SLIDER
 139
@@ -750,7 +767,7 @@ adult-num
 adult-num
 0
 100 - (child-num + senior-num + disable-num)
-14.9
+81.0
 0.1
 1
 %
@@ -765,7 +782,7 @@ senior-num
 senior-num
 0
 100 - (child-num + adult-num + disable-num)
-81.0
+15.0
 0.1
 1
 %
@@ -846,7 +863,7 @@ SWITCH
 159
 draw-path?
 draw-path?
-0
+1
 1
 -1000
 
@@ -883,7 +900,7 @@ TEXTBOX
 429
 1214
 513
-BehaviorSpace output:\nmean [travel-distance] of persons\nmean [sqrt (vx * vx + vy * vy)] of persons\nticks * 0.2\ncount persons
+BehaviorSpace output:\nmean [travel-distance] of persons\nmean [sqrt (vx * vx + vy * vy)] of persons\ncount persons with [ state = \"alive\" ]
 11
 0.0
 1
@@ -900,14 +917,14 @@ danger?
 -1000
 
 SLIDER
-157
-436
-249
-469
+142
+434
+234
+467
 fire-count
 fire-count
-0
-2
+1
+5
 2.0
 1
 1
@@ -915,15 +932,56 @@ NIL
 HORIZONTAL
 
 SLIDER
-158
-476
-250
-509
+140
+549
+232
+582
 visibility
 visibility
 0
 20
 12.0
+1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+417
+438
+474
+483
+death
+count persons with [ state = \"die\" ]
+17
+1
+11
+
+SLIDER
+141
+472
+278
+505
+smoke-spread-velocity
+smoke-spread-velocity
+0
+5
+1.2
+0.1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+140
+510
+277
+543
+fire-spread-velocity
+fire-spread-velocity
+0
+10
+2.0
 1
 1
 NIL
@@ -1289,16 +1347,19 @@ NetLogo 6.3.0
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="s-I.123.1" repetitions="100" runMetricsEveryStep="true">
+  <experiment name="S-II.1.123" repetitions="100" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="900"/>
+    <timeLimit steps="500"/>
     <metric>mean [travel-distance] of persons</metric>
     <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
-    <metric>ticks * 0.2</metric>
-    <metric>count persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
     <enumeratedValueSet variable="sigma">
       <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="2"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="senior-num">
       <value value="15"/>
@@ -1306,11 +1367,20 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="u0">
       <value value="1.6"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="v0">
       <value value="0.3"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="1.2"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="adult-num">
-      <value value="81.8"/>
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="2"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="child-num">
       <value value="3"/>
@@ -1325,19 +1395,385 @@ NetLogo 6.3.0
       <value value="0.48"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="disable-num">
-      <value value="0.2"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="tau">
-      <value value="2.5"/>
+      <value value="1"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="field-of-view">
       <value value="200"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="draw-path?">
-      <value value="true"/>
+      <value value="false"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="exit-width">
       <value value="2"/>
+      <value value="5"/>
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side A&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="300"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="S-II.2.12" repetitions="100" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="500"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="1.2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="2"/>
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;2-side A&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="300"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="S-II.3.1" repetitions="100" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="500"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="1.2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side AC&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="300"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="S-II.4.1" repetitions="100" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="500"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="1.2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side ABD&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="300"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="S-II.5.1" repetitions="100" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="500"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="1.2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side ABCD&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="300"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="S-I.123.1" repetitions="100" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="600"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="1.2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="true"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="exit-door-layout">
       <value value="&quot;1-side A&quot;"/>
@@ -1348,16 +1784,19 @@ NetLogo 6.3.0
       <value value="500"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="s-I.123.2" repetitions="100" runMetricsEveryStep="true">
+  <experiment name="S-I.123.2" repetitions="100" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="300"/>
+    <timeLimit steps="600"/>
     <metric>mean [travel-distance] of persons</metric>
     <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
-    <metric>ticks * 0.2</metric>
-    <metric>count persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
     <enumeratedValueSet variable="sigma">
       <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="2"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="senior-num">
       <value value="30"/>
@@ -1365,11 +1804,20 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="u0">
       <value value="1.6"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="v0">
       <value value="0.3"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="1.2"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="adult-num">
       <value value="60"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="2"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="child-num">
       <value value="9"/>
@@ -1386,17 +1834,20 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="disable-num">
       <value value="1"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="tau">
-      <value value="2.5"/>
-    </enumeratedValueSet>
     <enumeratedValueSet variable="field-of-view">
       <value value="200"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="draw-path?">
-      <value value="true"/>
+      <value value="false"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="exit-width">
       <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="true"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="exit-door-layout">
       <value value="&quot;1-side A&quot;"/>
@@ -1410,13 +1861,16 @@ NetLogo 6.3.0
   <experiment name="S-I.123.3" repetitions="100" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="300"/>
+    <timeLimit steps="600"/>
     <metric>mean [travel-distance] of persons</metric>
     <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
-    <metric>ticks * 0.2</metric>
-    <metric>count persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
     <enumeratedValueSet variable="sigma">
       <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="2"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="senior-num">
       <value value="45"/>
@@ -1424,11 +1878,20 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="u0">
       <value value="1.6"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="v0">
       <value value="0.3"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="1.2"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="adult-num">
       <value value="45"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="2"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="child-num">
       <value value="9"/>
@@ -1445,17 +1908,20 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="disable-num">
       <value value="1"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="tau">
-      <value value="2.5"/>
-    </enumeratedValueSet>
     <enumeratedValueSet variable="field-of-view">
       <value value="200"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="draw-path?">
-      <value value="true"/>
+      <value value="false"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="exit-width">
       <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="true"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="exit-door-layout">
       <value value="&quot;1-side A&quot;"/>
@@ -1469,13 +1935,16 @@ NetLogo 6.3.0
   <experiment name="S-I.123.4" repetitions="100" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="300"/>
+    <timeLimit steps="600"/>
     <metric>mean [travel-distance] of persons</metric>
     <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
-    <metric>ticks * 0.2</metric>
-    <metric>count persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
     <enumeratedValueSet variable="sigma">
       <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="2"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="senior-num">
       <value value="35"/>
@@ -1483,11 +1952,20 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="u0">
       <value value="1.6"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="v0">
       <value value="0.3"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="1.2"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="adult-num">
       <value value="35"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="2"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="child-num">
       <value value="29"/>
@@ -1504,17 +1982,20 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="disable-num">
       <value value="1"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="tau">
-      <value value="2.5"/>
-    </enumeratedValueSet>
     <enumeratedValueSet variable="field-of-view">
       <value value="200"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="draw-path?">
-      <value value="true"/>
+      <value value="false"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="exit-width">
       <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="true"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="exit-door-layout">
       <value value="&quot;1-side A&quot;"/>
@@ -1528,13 +2009,16 @@ NetLogo 6.3.0
   <experiment name="S-I.123.5" repetitions="100" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="300"/>
+    <timeLimit steps="600"/>
     <metric>mean [travel-distance] of persons</metric>
     <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
-    <metric>ticks * 0.2</metric>
-    <metric>count persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
     <enumeratedValueSet variable="sigma">
       <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="2"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="senior-num">
       <value value="81"/>
@@ -1542,11 +2026,20 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="u0">
       <value value="1.6"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="v0">
       <value value="0.3"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="1.2"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="adult-num">
       <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="2"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="child-num">
       <value value="3"/>
@@ -1563,17 +2056,20 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="disable-num">
       <value value="1"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="tau">
-      <value value="2.5"/>
-    </enumeratedValueSet>
     <enumeratedValueSet variable="field-of-view">
       <value value="200"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="draw-path?">
-      <value value="true"/>
+      <value value="false"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="exit-width">
       <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="true"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="exit-door-layout">
       <value value="&quot;1-side A&quot;"/>
@@ -1581,404 +2077,6 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="num-people">
       <value value="50"/>
       <value value="250"/>
-      <value value="500"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="s-II.1.123" repetitions="100" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="300"/>
-    <metric>mean [travel-distance] of persons</metric>
-    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
-    <metric>ticks * 0.2</metric>
-    <metric>count persons</metric>
-    <enumeratedValueSet variable="sigma">
-      <value value="0.6"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="senior-num">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="u0">
-      <value value="1.6"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="v0">
-      <value value="0.3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="adult-num">
-      <value value="81"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="child-num">
-      <value value="3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="c">
-      <value value="0.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="r">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="max-speed-y">
-      <value value="0.48"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="disable-num">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="tau">
-      <value value="2.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="field-of-view">
-      <value value="200"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="draw-path?">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="exit-width">
-      <value value="2"/>
-      <value value="5"/>
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="exit-door-layout">
-      <value value="&quot;1-side A&quot;"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="num-people">
-      <value value="300"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="s-II.2.12" repetitions="100" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="300"/>
-    <metric>mean [travel-distance] of persons</metric>
-    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
-    <metric>ticks * 0.2</metric>
-    <metric>count persons</metric>
-    <enumeratedValueSet variable="sigma">
-      <value value="0.6"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="senior-num">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="u0">
-      <value value="1.6"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="v0">
-      <value value="0.3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="adult-num">
-      <value value="81"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="child-num">
-      <value value="3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="c">
-      <value value="0.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="r">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="max-speed-y">
-      <value value="0.48"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="disable-num">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="tau">
-      <value value="2.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="field-of-view">
-      <value value="200"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="draw-path?">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="exit-width">
-      <value value="2"/>
-      <value value="5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="exit-door-layout">
-      <value value="&quot;2-side A&quot;"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="num-people">
-      <value value="300"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="s-II.3.1" repetitions="100" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="300"/>
-    <metric>mean [travel-distance] of persons</metric>
-    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
-    <metric>ticks * 0.2</metric>
-    <metric>count persons</metric>
-    <enumeratedValueSet variable="sigma">
-      <value value="0.6"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="senior-num">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="u0">
-      <value value="1.6"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="v0">
-      <value value="0.3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="adult-num">
-      <value value="81"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="child-num">
-      <value value="3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="c">
-      <value value="0.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="r">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="max-speed-y">
-      <value value="0.48"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="disable-num">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="tau">
-      <value value="2.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="field-of-view">
-      <value value="200"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="draw-path?">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="exit-width">
-      <value value="3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="exit-door-layout">
-      <value value="&quot;1-side AC&quot;"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="num-people">
-      <value value="300"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="s-II.4.1" repetitions="1" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <metric>count turtles</metric>
-    <enumeratedValueSet variable="sigma">
-      <value value="0.6"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="senior-num">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="u0">
-      <value value="1.6"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="v0">
-      <value value="0.3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="adult-num">
-      <value value="81"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="child-num">
-      <value value="3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="c">
-      <value value="0.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="r">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="max-speed-y">
-      <value value="0.48"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="disable-num">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="tau">
-      <value value="2.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="field-of-view">
-      <value value="200"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="draw-path?">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="exit-width">
-      <value value="3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="exit-door-layout">
-      <value value="&quot;1-side AC&quot;"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="num-people">
-      <value value="300"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="s-II.4.1" repetitions="100" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="300"/>
-    <metric>mean [travel-distance] of persons</metric>
-    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
-    <metric>ticks * 0.2</metric>
-    <metric>count persons</metric>
-    <enumeratedValueSet variable="sigma">
-      <value value="0.6"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="senior-num">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="u0">
-      <value value="1.6"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="v0">
-      <value value="0.3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="adult-num">
-      <value value="81"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="child-num">
-      <value value="3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="c">
-      <value value="0.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="r">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="max-speed-y">
-      <value value="0.48"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="disable-num">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="tau">
-      <value value="2.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="field-of-view">
-      <value value="200"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="draw-path?">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="exit-width">
-      <value value="3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="exit-door-layout">
-      <value value="&quot;1-side ABD&quot;"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="num-people">
-      <value value="300"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="s-II.5.1" repetitions="100" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="400"/>
-    <metric>mean [travel-distance] of persons</metric>
-    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
-    <metric>ticks * 0.2</metric>
-    <metric>count persons</metric>
-    <enumeratedValueSet variable="sigma">
-      <value value="0.6"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="senior-num">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="u0">
-      <value value="1.6"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="v0">
-      <value value="0.3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="adult-num">
-      <value value="81"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="child-num">
-      <value value="3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="c">
-      <value value="0.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="r">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="max-speed-y">
-      <value value="0.48"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="disable-num">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="tau">
-      <value value="2.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="field-of-view">
-      <value value="200"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="draw-path?">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="exit-width">
-      <value value="3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="exit-door-layout">
-      <value value="&quot;1-side ABCD&quot;"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="num-people">
-      <value value="300"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="S-I.3.5" repetitions="100" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="500"/>
-    <metric>mean [travel-distance] of persons</metric>
-    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
-    <metric>ticks * 0.2</metric>
-    <metric>count persons</metric>
-    <enumeratedValueSet variable="sigma">
-      <value value="0.6"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="senior-num">
-      <value value="81"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="u0">
-      <value value="1.6"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="v0">
-      <value value="0.3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="adult-num">
-      <value value="15"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="child-num">
-      <value value="3"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="c">
-      <value value="0.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="r">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="max-speed-y">
-      <value value="0.48"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="disable-num">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="tau">
-      <value value="2.5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="field-of-view">
-      <value value="200"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="draw-path?">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="exit-width">
-      <value value="2"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="exit-door-layout">
-      <value value="&quot;1-side A&quot;"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="num-people">
       <value value="500"/>
     </enumeratedValueSet>
   </experiment>
