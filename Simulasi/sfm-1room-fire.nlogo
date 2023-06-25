@@ -344,14 +344,6 @@ to move-persons
     set vy vy * multiplier
     let v (sqrt (vx * vx + vy * vy))
 
-    ; kalau lihat api, reroute
-    ifelse any? patches with [ patch-id = 1000 ] in-cone (v * visibility * c) field-of-view [
-      set vx ((random 3 - 1) * vx * 3)
-      set vy ((random 3 - 1) * vy * 3)
-      set xcor xcor + vx
-      set ycor ycor + vy
-    ] []
-
     ; kalau kena api
     agent-burnt
 
@@ -376,16 +368,17 @@ to move-persons
       set xcor xcor - vx
       set ycor ycor - vy
     ]
-    set travel-distance travel-distance + (sqrt (vx * vx + vy * vy))
-  ]
 
-  ; kalau lihat api, reroute
+    ; kalau lihat api, reroute
     ifelse any? patches with [ patch-id = 1000 ] in-cone (v * visibility * c) field-of-view [
       set vx ((random 3 - 1) * vx * 3)
       set vy ((random 3 - 1) * vy * 3)
       set xcor xcor + vx
       set ycor ycor + vy
     ] []
+
+    set travel-distance travel-distance + (sqrt (vx * vx + vy * vy))
+  ]
 
   ; kalau sudah berhasil evakuasi
   ask patches with [ patch-id = 1 ] [
@@ -572,7 +565,7 @@ INPUTBOX
 158
 119
 num-people
-250.0
+500.0
 1
 0
 Number
@@ -767,7 +760,7 @@ adult-num
 adult-num
 0
 100 - (child-num + senior-num + disable-num)
-81.0
+15.0
 0.1
 1
 %
@@ -782,7 +775,7 @@ senior-num
 senior-num
 0
 100 - (child-num + adult-num + disable-num)
-15.0
+81.0
 0.1
 1
 %
