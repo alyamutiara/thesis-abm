@@ -36,9 +36,11 @@ to setup
   reset-ticks
   set-env
   set-agent
+  ifelse draw-grid? = true [ gridlines ] []
 end
 
 to go
+  ifelse draw-grid? = true [ gridlines ] []
   calc-desired-direction
   calc-driving-force
   calc-obstacle-force
@@ -52,6 +54,37 @@ to go
 end
 
 ; ============================ SETUP BUTTON ============================
+
+to gridlines
+  let x min-pxcor
+  repeat world-width - 1 [
+    crt 1 [
+      set ycor min-pycor
+      set xcor x + 0.5
+      set color 0
+      set heading 0
+      pd
+      fd world-height - 1
+      die
+    ]
+    set x x + 1
+  ]
+
+  set x min-pycor
+  repeat world-height - 1 [
+    crt 1 [
+      set xcor min-pxcor
+      set ycor x + 0.5
+      set color 0
+      set heading 90
+      pd
+      fd world-width - 1
+      die
+    ]
+    set x x + 1
+  ]
+end
+
 to set-env
   ask patches [
     set pcolor white
@@ -779,7 +812,7 @@ PENS
 SWITCH
 109
 126
-236
+222
 159
 draw-path?
 draw-path?
@@ -841,6 +874,17 @@ NIL
 NIL
 NIL
 1
+
+SWITCH
+228
+126
+339
+159
+draw-grid?
+draw-grid?
+0
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
