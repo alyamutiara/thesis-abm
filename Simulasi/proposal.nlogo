@@ -607,7 +607,7 @@ r
 r
 0.15
 1
-0.41
+0.4
 0.01
 1
 NIL
@@ -662,7 +662,7 @@ max-speed-y
 max-speed-y
 0
 1
-0.48
+0.5
 0.01
 1
 NIL
@@ -816,7 +816,7 @@ SWITCH
 159
 draw-path?
 draw-path?
-0
+1
 1
 -1000
 
@@ -882,7 +882,7 @@ SWITCH
 159
 draw-grid?
 draw-grid?
-0
+1
 1
 -1000
 
