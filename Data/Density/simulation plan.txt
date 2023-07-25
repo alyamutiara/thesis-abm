@@ -1,5 +1,0 @@
-adult: 15.0%
-senior: 81.0%
-child: 3%
-disable: 1%
-

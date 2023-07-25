@@ -8,7 +8,6 @@ globals [
   middle
   move-speed         ; how many patches did persons move in last tick on average
   dead               ; count persons dead
-  done?
 ]
 
 persons-own [
@@ -28,6 +27,7 @@ persons-own [
   counter
   energy
   state
+  stuck
 ]
 
 patches-own [
@@ -36,15 +36,6 @@ patches-own [
   name               ; patches id
   door-state
 ]
-
-to start
-  set done? false
-  while [not done? or ticks <= 500 ] [
-    carefully [
-      go
-    ] []
-  ]
-end
 
 to setup
   clear-all
@@ -94,8 +85,8 @@ to set-env
   ]
 
   ;; create the exit door
-  set upper round (exit-width * 2 / 2)
-  set lower 0 - (exit-width * 2 - upper)
+  set upper round (exit-width / 2)
+  set lower 0 - (exit-width - upper)
   set middle ((max-pycor - min-pycor) / 4)
   if exit-door-layout = "1-side A" [
     ask patches with [ pxcor = min-pxcor and pycor < upper and pycor >= lower ] [
@@ -246,15 +237,21 @@ to set-agent
     set energy random 40 + 60
     initialized-agent
   ]
+
+;  ask patches [
+;    set plabel patch-id
+;    set plabel-color black
+;  ]
 end
 
 to initialized-agent
-  set size 2
+  set size 1
   set shape "circle3"
   set state "alive"
   let init-direction 0 + random 360
   set vx sin init-direction
   set vy cos init-direction
+  set counter 15
 end
 
 to blow-up
@@ -263,7 +260,7 @@ to blow-up
       set shape "fire"
       set color red
       set patch-id 1000
-      set size 2
+      set size 1
     ]
   ]
 end
@@ -388,15 +385,27 @@ to move-persons
         set xcor xcor + vx
         set ycor ycor + vy
       ] [
-        set xcor xcor - xcor
-        set ycor ycor - ycor
+        set xcor xcor - vx
+        set ycor ycor - vy
         show "I'm stuck!"
+        set label "I'm stuck!"
+        set label-color black
+        set counter counter - 1
+        if counter <= 0 [ show "Goodbye world, I'm gonna die" die set stuck stuck + 1]
       ]
     ] [
-      set vx 0
-      set vy 0
-      set xcor xcor + vx
-      set ycor ycor + vy
+      carefully [
+        let pengali -1
+        while [can-move? (v * 2) = false] [
+          set vx vx * (pengali * random-float 1)
+          set vy vy * (pengali * random-float 1)
+          set xcor xcor + vx
+          set ycor ycor + vy
+          set pengali pengali - 1
+          ;set energy energy - 5
+
+        ]
+      ] []
     ]
 
     set travel-distance travel-distance + (sqrt (vx * vx + vy * vy))
@@ -544,13 +553,13 @@ to-report mean-travel-distance
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-331
-35
-669
-374
+352
+34
+588
+271
 -1
 -1
-10.0
+12.0
 1
 8
 1
@@ -560,10 +569,10 @@ GRAPHICS-WINDOW
 0
 0
 1
--16
-16
--16
-16
+-9
+9
+-9
+9
 0
 0
 1
@@ -610,7 +619,7 @@ INPUTBOX
 158
 119
 num-people
-500.0
+350.0
 1
 0
 Number
@@ -623,7 +632,7 @@ SLIDER
 exit-width
 exit-width
 1
-max-pycor
+max-pycor - min-pycor - 1
 4.0
 1
 1
@@ -937,8 +946,8 @@ TEXTBOX
 1446
 429
 1809
-527
-mean [travel-distance] of persons\nmean [sqrt (vx * vx + vy * vy)] of persons\ncount persons with [ state = \"alive\" ]\ncount persons with [ state = \"die\" ]\n(max-pxcor * 0.25) * (max-pycor * 0.25)\nnum-people / (max-pxcor * 0.25) * (max-pycor * 0.25)
+541
+mean [travel-distance] of persons\nmean [sqrt (vx * vx + vy * vy)] of persons\ncount persons with [ state = \"alive\" ]\ncount persons with [ state = \"die\" ]\n((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5)\nnum-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5))
 11
 0.0
 1
@@ -1049,11 +1058,11 @@ open-door?
 MONITOR
 254
 194
-312
+316
 239
-luas
-(max-pxcor * 0.25) * (max-pycor * 0.25)
-17
+luas m2
+((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5)
+1
 1
 11
 
@@ -1065,6 +1074,28 @@ MONITOR
 orang
 num-people
 17
+1
+11
+
+MONITOR
+256
+352
+330
+397
+max-person
+count patches with [ patch-id = 0 ]
+0
+1
+11
+
+MONITOR
+256
+300
+315
+345
+density
+num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5))
+5
 1
 11
 
@@ -2742,7 +2773,7 @@ NetLogo 6.3.0
       <value value="false"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="exit-width">
-      <value value="2"/>
+      <value value="4"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="danger?">
       <value value="false"/>
@@ -2759,14 +2790,20 @@ NetLogo 6.3.0
       <value value="30"/>
       <value value="40"/>
       <value value="50"/>
+      <value value="60"/>
+      <value value="70"/>
+      <value value="80"/>
+      <value value="90"/>
       <value value="100"/>
+      <value value="110"/>
+      <value value="120"/>
+      <value value="130"/>
+      <value value="140"/>
       <value value="150"/>
       <value value="200"/>
       <value value="250"/>
       <value value="300"/>
-      <value value="400"/>
-      <value value="500"/>
-      <value value="600"/>
+      <value value="350"/>
     </enumeratedValueSet>
   </experiment>
   <experiment name="25m2-density2" repetitions="100" runMetricsEveryStep="true">
@@ -3127,7 +3164,7 @@ NetLogo 6.3.0
       <value value="144"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="100m2-400-ew-2sideAC" repetitions="100" runMetricsEveryStep="true">
+  <experiment name="100m2-400-ew-2sideAC" repetitions="50" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="500"/>
@@ -3135,8 +3172,8 @@ NetLogo 6.3.0
     <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
     <metric>count persons with [ state = "alive" ]</metric>
     <metric>count persons with [ state = "die" ]</metric>
-    <metric>(max-pxcor * 0.25) * (max-pycor * 0.25)</metric>
-    <metric>num-people / ((max-pxcor * 0.25) * (max-pycor * 0.25))</metric>
+    <metric>((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5)</metric>
+    <metric>num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5))</metric>
     <enumeratedValueSet variable="sigma">
       <value value="0.6"/>
     </enumeratedValueSet>
@@ -3194,7 +3231,9 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="exit-width">
       <value value="1"/>
       <value value="2"/>
+      <value value="3"/>
       <value value="4"/>
+      <value value="5"/>
       <value value="6"/>
       <value value="8"/>
       <value value="10"/>
@@ -3202,7 +3241,6 @@ NetLogo 6.3.0
       <value value="14"/>
       <value value="16"/>
       <value value="18"/>
-      <value value="20"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="danger?">
       <value value="false"/>
@@ -3214,10 +3252,10 @@ NetLogo 6.3.0
       <value value="&quot;door opened/closed&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="num-people">
-      <value value="400"/>
+      <value value="200"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="100m2-400-ew-1sideA" repetitions="100" runMetricsEveryStep="true">
+  <experiment name="100m2-400-ew-1sideA" repetitions="50" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="500"/>
@@ -3225,8 +3263,8 @@ NetLogo 6.3.0
     <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
     <metric>count persons with [ state = "alive" ]</metric>
     <metric>count persons with [ state = "die" ]</metric>
-    <metric>(max-pxcor * 0.25) * (max-pycor * 0.25)</metric>
-    <metric>num-people / ((max-pxcor * 0.25) * (max-pycor * 0.25))</metric>
+    <metric>((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5)</metric>
+    <metric>num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5))</metric>
     <enumeratedValueSet variable="sigma">
       <value value="0.6"/>
     </enumeratedValueSet>
@@ -3284,7 +3322,9 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="exit-width">
       <value value="1"/>
       <value value="2"/>
+      <value value="3"/>
       <value value="4"/>
+      <value value="5"/>
       <value value="6"/>
       <value value="8"/>
       <value value="10"/>
@@ -3292,7 +3332,6 @@ NetLogo 6.3.0
       <value value="14"/>
       <value value="16"/>
       <value value="18"/>
-      <value value="20"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="danger?">
       <value value="false"/>
@@ -3304,10 +3343,10 @@ NetLogo 6.3.0
       <value value="&quot;door opened/closed&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="num-people">
-      <value value="400"/>
+      <value value="250"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="100m2-400-ew-1sideABCD" repetitions="100" runMetricsEveryStep="true">
+  <experiment name="100m2-400-ew-1sideABCD" repetitions="50" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="500"/>
@@ -3315,8 +3354,8 @@ NetLogo 6.3.0
     <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
     <metric>count persons with [ state = "alive" ]</metric>
     <metric>count persons with [ state = "die" ]</metric>
-    <metric>(max-pxcor * 0.25) * (max-pycor * 0.25)</metric>
-    <metric>num-people / ((max-pxcor * 0.25) * (max-pycor * 0.25))</metric>
+    <metric>((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5)</metric>
+    <metric>num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5))</metric>
     <enumeratedValueSet variable="sigma">
       <value value="0.6"/>
     </enumeratedValueSet>
@@ -3374,7 +3413,9 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="exit-width">
       <value value="1"/>
       <value value="2"/>
+      <value value="3"/>
       <value value="4"/>
+      <value value="5"/>
       <value value="6"/>
       <value value="8"/>
       <value value="10"/>
@@ -3382,7 +3423,6 @@ NetLogo 6.3.0
       <value value="14"/>
       <value value="16"/>
       <value value="18"/>
-      <value value="20"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="danger?">
       <value value="false"/>
@@ -3394,10 +3434,10 @@ NetLogo 6.3.0
       <value value="&quot;door opened/closed&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="num-people">
-      <value value="400"/>
+      <value value="200"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="100m2-400-exitwidth-2sideA" repetitions="100" runMetricsEveryStep="true">
+  <experiment name="100m2-400-exitwidth-2sideA" repetitions="50" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="500"/>
@@ -3405,8 +3445,8 @@ NetLogo 6.3.0
     <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
     <metric>count persons with [ state = "alive" ]</metric>
     <metric>count persons with [ state = "die" ]</metric>
-    <metric>(max-pxcor * 0.25) * (max-pycor * 0.25)</metric>
-    <metric>num-people / ((max-pxcor * 0.25) * (max-pycor * 0.25))</metric>
+    <metric>((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5)</metric>
+    <metric>num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5))</metric>
     <enumeratedValueSet variable="sigma">
       <value value="0.6"/>
     </enumeratedValueSet>
@@ -3464,15 +3504,12 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="exit-width">
       <value value="1"/>
       <value value="2"/>
+      <value value="3"/>
       <value value="4"/>
+      <value value="5"/>
       <value value="6"/>
       <value value="8"/>
       <value value="10"/>
-      <value value="12"/>
-      <value value="14"/>
-      <value value="16"/>
-      <value value="18"/>
-      <value value="20"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="danger?">
       <value value="false"/>
@@ -3484,10 +3521,10 @@ NetLogo 6.3.0
       <value value="&quot;door opened/closed&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="num-people">
-      <value value="400"/>
+      <value value="250"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="100m2-400-ew-1sideABD" repetitions="100" runMetricsEveryStep="true">
+  <experiment name="100m2-400-ew-1sideABD" repetitions="50" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="500"/>
@@ -3495,8 +3532,8 @@ NetLogo 6.3.0
     <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
     <metric>count persons with [ state = "alive" ]</metric>
     <metric>count persons with [ state = "die" ]</metric>
-    <metric>(max-pxcor * 0.25) * (max-pycor * 0.25)</metric>
-    <metric>num-people / ((max-pxcor * 0.25) * (max-pycor * 0.25))</metric>
+    <metric>((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5)</metric>
+    <metric>num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5))</metric>
     <enumeratedValueSet variable="sigma">
       <value value="0.6"/>
     </enumeratedValueSet>
@@ -3554,7 +3591,9 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="exit-width">
       <value value="1"/>
       <value value="2"/>
+      <value value="3"/>
       <value value="4"/>
+      <value value="5"/>
       <value value="6"/>
       <value value="8"/>
       <value value="10"/>
@@ -3562,7 +3601,6 @@ NetLogo 6.3.0
       <value value="14"/>
       <value value="16"/>
       <value value="18"/>
-      <value value="20"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="danger?">
       <value value="false"/>
@@ -3574,10 +3612,10 @@ NetLogo 6.3.0
       <value value="&quot;door opened/closed&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="num-people">
-      <value value="400"/>
+      <value value="200"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="100m2-400-ew-3sideA" repetitions="100" runMetricsEveryStep="true">
+  <experiment name="100m2-400-ew-3sideA" repetitions="50" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="500"/>
@@ -3585,8 +3623,8 @@ NetLogo 6.3.0
     <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
     <metric>count persons with [ state = "alive" ]</metric>
     <metric>count persons with [ state = "die" ]</metric>
-    <metric>(max-pxcor * 0.25) * (max-pycor * 0.25)</metric>
-    <metric>num-people / ((max-pxcor * 0.25) * (max-pycor * 0.25))</metric>
+    <metric>((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5)</metric>
+    <metric>num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5))</metric>
     <enumeratedValueSet variable="sigma">
       <value value="0.6"/>
     </enumeratedValueSet>
@@ -3644,7 +3682,9 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="exit-width">
       <value value="1"/>
       <value value="2"/>
+      <value value="3"/>
       <value value="4"/>
+      <value value="5"/>
       <value value="6"/>
       <value value="8"/>
       <value value="10"/>
@@ -3652,7 +3692,6 @@ NetLogo 6.3.0
       <value value="14"/>
       <value value="16"/>
       <value value="18"/>
-      <value value="20"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="danger?">
       <value value="false"/>
@@ -3664,10 +3703,10 @@ NetLogo 6.3.0
       <value value="&quot;door opened/closed&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="num-people">
-      <value value="400"/>
+      <value value="250"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="density-100m2" repetitions="100" runMetricsEveryStep="true">
+  <experiment name="density-100m2" repetitions="50" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="600"/>
@@ -3675,8 +3714,8 @@ NetLogo 6.3.0
     <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
     <metric>count persons with [ state = "alive" ]</metric>
     <metric>count persons with [ state = "die" ]</metric>
-    <metric>(max-pxcor * 0.25) * (max-pycor * 0.25)</metric>
-    <metric>num-people / ((max-pxcor * 0.25) * (max-pycor * 0.25))</metric>
+    <metric>((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5)</metric>
+    <metric>num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5))</metric>
     <enumeratedValueSet variable="sigma">
       <value value="0.6"/>
     </enumeratedValueSet>
@@ -3763,14 +3802,6 @@ NetLogo 6.3.0
       <value value="250"/>
       <value value="300"/>
       <value value="350"/>
-      <value value="400"/>
-      <value value="450"/>
-      <value value="500"/>
-      <value value="600"/>
-      <value value="700"/>
-      <value value="800"/>
-      <value value="900"/>
-      <value value="1000"/>
     </enumeratedValueSet>
   </experiment>
   <experiment name="density-81m2" repetitions="50" runMetricsEveryStep="true">
@@ -3781,8 +3812,8 @@ NetLogo 6.3.0
     <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
     <metric>count persons with [ state = "alive" ]</metric>
     <metric>count persons with [ state = "die" ]</metric>
-    <metric>(max-pxcor * 0.25) * (max-pycor * 0.25)</metric>
-    <metric>num-people / ((max-pxcor * 0.25) * (max-pycor * 0.25))</metric>
+    <metric>((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5)</metric>
+    <metric>num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5))</metric>
     <enumeratedValueSet variable="sigma">
       <value value="0.6"/>
     </enumeratedValueSet>
@@ -3869,14 +3900,6 @@ NetLogo 6.3.0
       <value value="203"/>
       <value value="243"/>
       <value value="284"/>
-      <value value="324"/>
-      <value value="365"/>
-      <value value="405"/>
-      <value value="486"/>
-      <value value="567"/>
-      <value value="648"/>
-      <value value="729"/>
-      <value value="810"/>
     </enumeratedValueSet>
   </experiment>
   <experiment name="density-64m2" repetitions="50" runMetricsEveryStep="true">
@@ -4091,16 +4114,16 @@ NetLogo 6.3.0
       <value value="490"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="population static-density vary" repetitions="100" runMetricsEveryStep="true">
+  <experiment name="100m2-population static-density vary" repetitions="50" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="500"/>
+    <timeLimit steps="600"/>
     <metric>mean [travel-distance] of persons</metric>
     <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
     <metric>count persons with [ state = "alive" ]</metric>
     <metric>count persons with [ state = "die" ]</metric>
-    <metric>(max-pxcor * 0.25) * (max-pycor * 0.25)</metric>
-    <metric>num-people / ((max-pxcor * 0.25) * (max-pycor * 0.25))</metric>
+    <metric>((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5)</metric>
+    <metric>num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5))</metric>
     <enumeratedValueSet variable="sigma">
       <value value="0.6"/>
     </enumeratedValueSet>
@@ -4179,8 +4202,7 @@ NetLogo 6.3.0
       <value value="200"/>
       <value value="250"/>
       <value value="300"/>
-      <value value="400"/>
-      <value value="500"/>
+      <value value="350"/>
     </enumeratedValueSet>
   </experiment>
   <experiment name="density-36m2" repetitions="50" runMetricsEveryStep="true">
@@ -4499,6 +4521,744 @@ NetLogo 6.3.0
       <value value="128"/>
       <value value="144"/>
       <value value="160"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="225m2-population static-density vary" repetitions="50" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="600"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
+    <metric>((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5)</metric>
+    <metric>num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pxcor - min-pxcor) * 0.5))</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="open-door?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side A&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="scenario">
+      <value value="&quot;door opened/closed&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="5"/>
+      <value value="10"/>
+      <value value="15"/>
+      <value value="20"/>
+      <value value="25"/>
+      <value value="50"/>
+      <value value="100"/>
+      <value value="150"/>
+      <value value="200"/>
+      <value value="250"/>
+      <value value="300"/>
+      <value value="350"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="10x15m2-population static-density vary" repetitions="50" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="600"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
+    <metric>((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5)</metric>
+    <metric>num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5))</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="open-door?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side A&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="scenario">
+      <value value="&quot;door opened/closed&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="5"/>
+      <value value="10"/>
+      <value value="15"/>
+      <value value="20"/>
+      <value value="25"/>
+      <value value="50"/>
+      <value value="100"/>
+      <value value="150"/>
+      <value value="200"/>
+      <value value="250"/>
+      <value value="300"/>
+      <value value="350"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="15x10m2-population static-density vary" repetitions="50" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="600"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
+    <metric>((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5)</metric>
+    <metric>num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5))</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="open-door?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side A&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="scenario">
+      <value value="&quot;door opened/closed&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="5"/>
+      <value value="10"/>
+      <value value="15"/>
+      <value value="20"/>
+      <value value="25"/>
+      <value value="50"/>
+      <value value="100"/>
+      <value value="150"/>
+      <value value="200"/>
+      <value value="250"/>
+      <value value="300"/>
+      <value value="350"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="81m2-population static-density vary" repetitions="50" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="600"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
+    <metric>((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5)</metric>
+    <metric>num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5))</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="open-door?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side A&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="scenario">
+      <value value="&quot;door opened/closed&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="5"/>
+      <value value="10"/>
+      <value value="15"/>
+      <value value="20"/>
+      <value value="25"/>
+      <value value="50"/>
+      <value value="100"/>
+      <value value="150"/>
+      <value value="200"/>
+      <value value="250"/>
+      <value value="300"/>
+      <value value="350"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="400m2-population static-density vary" repetitions="50" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="600"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
+    <metric>((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5)</metric>
+    <metric>num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5))</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="open-door?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side A&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="scenario">
+      <value value="&quot;door opened/closed&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="5"/>
+      <value value="10"/>
+      <value value="15"/>
+      <value value="20"/>
+      <value value="25"/>
+      <value value="50"/>
+      <value value="100"/>
+      <value value="150"/>
+      <value value="200"/>
+      <value value="250"/>
+      <value value="300"/>
+      <value value="350"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="625m2-population static-density vary" repetitions="50" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="600"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
+    <metric>((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5)</metric>
+    <metric>num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5))</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="open-door?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side A&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="scenario">
+      <value value="&quot;door opened/closed&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="5"/>
+      <value value="10"/>
+      <value value="15"/>
+      <value value="20"/>
+      <value value="25"/>
+      <value value="50"/>
+      <value value="100"/>
+      <value value="150"/>
+      <value value="200"/>
+      <value value="250"/>
+      <value value="300"/>
+      <value value="350"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="density-400m2" repetitions="50" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="600"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
+    <metric>((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5)</metric>
+    <metric>num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5))</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="open-door?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side A&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="scenario">
+      <value value="&quot;door opened/closed&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="40"/>
+      <value value="80"/>
+      <value value="120"/>
+      <value value="160"/>
+      <value value="200"/>
+      <value value="240"/>
+      <value value="280"/>
+      <value value="320"/>
+      <value value="360"/>
+      <value value="400"/>
+      <value value="440"/>
+      <value value="480"/>
+      <value value="520"/>
+      <value value="560"/>
+      <value value="600"/>
+      <value value="800"/>
+      <value value="1000"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="density-225m2" repetitions="50" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="600"/>
+    <metric>mean [travel-distance] of persons</metric>
+    <metric>mean [sqrt (vx * vx + vy * vy)] of persons</metric>
+    <metric>count persons with [ state = "alive" ]</metric>
+    <metric>count persons with [ state = "die" ]</metric>
+    <metric>((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5)</metric>
+    <metric>num-people / (((max-pxcor - min-pxcor) * 0.5) * ((max-pycor - min-pycor) * 0.5))</metric>
+    <enumeratedValueSet variable="sigma">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="open-door?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="senior-num">
+      <value value="15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-spread-velocity">
+      <value value="9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="u0">
+      <value value="1.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="visibility">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="v0">
+      <value value="0.3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="smoke-spread-velocity">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fire-count">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="adult-num">
+      <value value="81"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="child-num">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="c">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="r">
+      <value value="0.4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-speed-y">
+      <value value="0.48"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="disable-num">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="field-of-view">
+      <value value="200"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="tau">
+      <value value="2.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="draw-path?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-width">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="danger?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exit-door-layout">
+      <value value="&quot;1-side A&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="scenario">
+      <value value="&quot;door opened/closed&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-people">
+      <value value="23"/>
+      <value value="45"/>
+      <value value="68"/>
+      <value value="90"/>
+      <value value="113"/>
+      <value value="135"/>
+      <value value="158"/>
+      <value value="180"/>
+      <value value="203"/>
+      <value value="225"/>
+      <value value="248"/>
+      <value value="270"/>
+      <value value="293"/>
+      <value value="315"/>
+      <value value="338"/>
+      <value value="450"/>
+      <value value="563"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
