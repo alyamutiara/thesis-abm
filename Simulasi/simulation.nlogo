@@ -555,11 +555,11 @@ end
 GRAPHICS-WINDOW
 352
 34
-588
-271
+780
+463
 -1
 -1
-12.0
+20.0
 1
 8
 1
@@ -569,10 +569,10 @@ GRAPHICS-WINDOW
 0
 0
 1
--9
-9
--9
-9
+-10
+10
+-10
+10
 0
 0
 1
@@ -619,7 +619,7 @@ INPUTBOX
 158
 119
 num-people
-350.0
+250.0
 1
 0
 Number
@@ -940,7 +940,7 @@ CHOOSER
 exit-door-layout
 exit-door-layout
 "1-side A" "2-side A" "3-side A" "1-side AC" "1-side ABD" "1-side ABCD"
-0
+5
 
 TEXTBOX
 1446
@@ -5146,21 +5146,6 @@ NetLogo 6.3.0
       <value value="&quot;door opened/closed&quot;"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="num-people">
-      <value value="40"/>
-      <value value="80"/>
-      <value value="120"/>
-      <value value="160"/>
-      <value value="200"/>
-      <value value="240"/>
-      <value value="280"/>
-      <value value="320"/>
-      <value value="360"/>
-      <value value="400"/>
-      <value value="440"/>
-      <value value="480"/>
-      <value value="520"/>
-      <value value="560"/>
-      <value value="600"/>
       <value value="800"/>
       <value value="1000"/>
     </enumeratedValueSet>
