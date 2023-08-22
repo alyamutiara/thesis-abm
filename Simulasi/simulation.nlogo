@@ -551,15 +551,19 @@ to-report mean-travel-distance
     report mean [ travel-distance ] of persons
   ] [ report 0 ]
 end
+
+to-report person-velocity
+
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 352
 34
-780
-463
+825
+508
 -1
 -1
-20.0
+15.0
 1
 8
 1
@@ -569,10 +573,10 @@ GRAPHICS-WINDOW
 0
 0
 1
--10
-10
--10
-10
+-15
+15
+-15
+15
 0
 0
 1
@@ -619,7 +623,7 @@ INPUTBOX
 158
 119
 num-people
-250.0
+400.0
 1
 0
 Number
@@ -633,7 +637,7 @@ exit-width
 exit-width
 1
 max-pycor - min-pycor - 1
-4.0
+2.0
 1
 1
 NIL
@@ -933,14 +937,14 @@ PENS
 "distance" 1.0 0 -16777216 true "" "plot mean-travel-distance"
 
 CHOOSER
-1254
-315
-1392
-360
+115
+465
+253
+510
 exit-door-layout
 exit-door-layout
 "1-side A" "2-side A" "3-side A" "1-side AC" "1-side ABD" "1-side ABCD"
-5
+0
 
 TEXTBOX
 1446
